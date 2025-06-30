@@ -8,3 +8,4 @@ data.tar.gz
 meta.csv
 sample_submission.csv
 train.csv
+output/
