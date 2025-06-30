@@ -1,5 +1,6 @@
+.DS_Storee
 .DS_Store
-
+input/data/
 # 데이터 디렉토리 및 이미지 데이터 무시
 data/train/
 data/test/
@@ -7,3 +8,4 @@ data.tar.gz
 meta.csv
 sample_submission.csv
 train.csv
+output/
