@@ -1,7 +1,7 @@
 # Title (Please modify the title)
 ## Team
 
-| ![문국현](https://avatars.githubusercontent.com/u/156163982?v=4) | ![류지헌](https://avatars.githubusercontent.com/u/156163982?v=4) | ![이승현](https://avatars.githubusercontent.com/u/156163982?v=4) | ![정재훈](https://avatars.githubusercontent.com/u/156163982?v=4) |
+| ![문국현](https://avatars.githubusercontent.com/u/167870439?v=4) | ![류지헌](https://avatars.githubusercontent.com/u/10584296?v=4) | ![이승현](https://avatars.githubusercontent.com/u/126837633?v=4) | ![정재훈](https://avatars.githubusercontent.com/u/127591967?v=4) |
 | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: |
 | [문국현](https://github.com/GH-Door) | [류지헌](https://github.com/UpstageAILab) | [이승현](https://github.com/UpstageAILab) | [정재훈](https://github.com/UpstageAILab) |
 | 팀장, 담당 역할 | 담당 역할 | 담당 역할 | 담당 역할 |
@@ -35,16 +35,17 @@ e.g.
 ```
 ├── code
 │   ├── jupyter_notebooks
-│   │   └── model_train.ipynb
+│   │   └── baseline_code.ipynb    # 베이스 라인 코드
 │   └── train.py
 ├── docs
 │   ├── pdf
 │   │   └── (Template) [패스트캠퍼스] Upstage AI Lab 1기_그룹 스터디 .pptx
 │   └── paper
 └── input
+│   ├── extract.sh  # ./extract.sh 실행 시 data 폴더를 생성하여 압축을 푼다
     └── data
-        ├── eval
-        └── train
+        ├── train
+        └── test
 ```
 
 ## 3. Data descrption
