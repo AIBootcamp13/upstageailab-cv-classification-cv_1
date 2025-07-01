@@ -42,7 +42,7 @@ e.g.
 │   │   └── (Template) [패스트캠퍼스] Upstage AI Lab 1기_그룹 스터디 .pptx
 │   └── paper
 └── input
-│   ├── extract.sh  # ./extract.sh 실행 시 data 폴더를 생성하여 압축을 푼다
+│   ├── get_data.sh  # ./get_data.sh 실행 시, 데이터 다운로드하여 data 폴더를 생성하여 압축을 푼다
     └── data
         ├── train
         └── test
