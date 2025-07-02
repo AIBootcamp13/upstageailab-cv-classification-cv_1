@@ -45,7 +45,11 @@ from sklearn.model_selection import StratifiedKFold
 import gc
 
 # 로그 유틸리티 import
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 현재 파일의 상위 디렉토리를 Python path에 추가
 import utils.log_util as log
+
 
 # 시드를 고정합니다.
 def set_seed(seed):
@@ -233,7 +237,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 log.info(f"💻 Using device: {device}")
 
 # data config
-data_path = '../input/data'
+data_path = '../../input/data'
 
 # model config
 model_name = 'efficientnet_b3'  # 더 좋은 모델 사용
@@ -475,7 +479,7 @@ pred_df['target'] = preds_list
 sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
 assert (sample_submission_df['ID'] == pred_df['ID']).all()
 
-output_path = "../output"
+output_path = "./output"
 os.makedirs(output_path, exist_ok=True)
 pred_df.to_csv(f"{output_path}/pred_kfold_ensemble.csv", index=False)
 
