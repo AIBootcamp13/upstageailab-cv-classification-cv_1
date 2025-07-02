@@ -1,5 +1,7 @@
 .DS_Storee
 .DS_Store
+.idea/
+__pycache__/
 input/data/
 # 데이터 디렉토리 및 이미지 데이터 무시
 data/train/
