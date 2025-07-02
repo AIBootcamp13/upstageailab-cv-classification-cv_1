@@ -3,7 +3,7 @@
 
 | ![문국현](https://avatars.githubusercontent.com/u/167870439?v=4) | ![류지헌](https://avatars.githubusercontent.com/u/10584296?v=4) | ![이승현](https://avatars.githubusercontent.com/u/126837633?v=4) | ![정재훈](https://avatars.githubusercontent.com/u/127591967?v=4) |
 | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: |
-| [문국현](https://github.com/GH-Door) | [류지헌](https://github.com/UpstageAILab) | [이승현](https://github.com/UpstageAILab) | [정재훈](https://github.com/UpstageAILab) |
+| [문국현](https://github.com/GH-Door) | [류지헌](https://github.com/mahomi) | [이승현](https://github.com/shyio06) | [정재훈](https://github.com/coevol) |
 | 팀장, 담당 역할 | 담당 역할 | 담당 역할 | 담당 역할 |
 
 
