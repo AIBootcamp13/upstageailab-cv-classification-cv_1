@@ -9,3 +9,7 @@ meta.csv
 sample_submission.csv
 train.csv
 output/
+
+# 개인 작업 중 추가되는 파일 무시
+*.yml
+*.csv
