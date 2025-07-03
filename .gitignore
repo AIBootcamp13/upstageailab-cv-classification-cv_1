@@ -2,9 +2,15 @@
 .idea/
 __pycache__/
 input/data/
+
 # 데이터 디렉토리 및 이미지 데이터 무시
 data/train/
 data/test/
+data/V1-augmented
+data/V2-augmented
+data/V3-augmented
+data/V4-augmented
+data/V5-augmented
 data.tar.gz
 meta.csv
 sample_submission.csv
