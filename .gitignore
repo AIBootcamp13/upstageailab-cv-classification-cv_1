@@ -3,7 +3,7 @@
 __pycache__/
 input/data/
 
-# 데이터 디렉토리 및 이미지 데이터 무시
+# 데이터 무시
 data/train/
 data/test/
 data/V1-augmented
@@ -16,6 +16,10 @@ meta.csv
 sample_submission.csv
 train.csv
 output/
+
+# Wandb 무시
+wandb/
+model/
 
 # 개인 작업 중 추가되는 파일 무시
 *.yml
