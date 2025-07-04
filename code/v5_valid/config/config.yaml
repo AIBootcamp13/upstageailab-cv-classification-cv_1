@@ -1,0 +1,39 @@
+# Hydra configuration for exp3 experiment
+defaults:
+  - _self_
+
+# Data configuration
+data:
+  data_path: "../../input/data"
+  img_size: 32
+  num_workers: 0
+
+# Model configuration
+model:
+  name: "resnet34"
+  num_classes: 17
+  pretrained: true
+
+# Training configuration
+training:
+  lr: 1e-3
+  epochs: 1
+  batch_size: 32
+  seed: 42
+
+# Device configuration
+device: "cuda"  # "cuda" or "cpu"
+
+# Output configuration
+output:
+  dir: "results"
+  filename: "pred.csv"
+
+# W&B configuration
+wandb:
+  enabled: false
+  project: null
+  entity: null  # will be loaded from .env file
+  run_name: "jhryu_v4_wandb_test"  # auto-generated if null
+  tags: []
+  notes: ""
