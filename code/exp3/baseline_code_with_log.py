@@ -59,7 +59,7 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
 
 # 로그 유틸리티 import
-from utils import log_util as log
+import log_util as log
 
 # 시드를 고정합니다.
 SEED = 42
@@ -139,7 +139,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 log.info(f"사용 장치: {device}")
 
 # data config
-data_path = '../input/data'
+data_path = '../../input/data'
 
 # model config
 model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
