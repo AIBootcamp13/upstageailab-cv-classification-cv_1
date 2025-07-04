@@ -21,6 +21,7 @@
   - `v1/` - k-fold 교차 검증 실험 (holdout, kfold)
   - `v2/` - 고급 모델 실험 (TTA, EfficientNet, 앙상블)
   - `v3_hydra/` - 최종 실험 (Hydra 설정 관리 시스템)
+  - `v4_wandb/` - wandb 연동 실험 (실험 추적 및 시각화)
   - `augmentation/` - 적응형 데이터 증강 시스템
   - `jupyter_notebooks/` - EDA 및 분석 노트북
     - `seung_notebook/` - 추가 분석 노트북
@@ -65,6 +66,7 @@
 - **v1**: k-fold 교차 검증 실험 (holdout, kfold)
 - **v2**: 고급 모델 실험 (TTA, EfficientNet-v2, 앙상블)
 - **v3_hydra**: 최종 실험 (Hydra 설정 관리 시스템 적용)
+- **v4_wandb**: wandb 연동 실험 (실험 추적, 시각화, 하이퍼파라미터 관리)
 
 ### 3. 적응형 증강 시스템
 - 테스트 데이터 분석 기반 증강
@@ -131,6 +133,55 @@ uv run main.py data.img_size=224 training.lr=1e-4
 - **training**: 훈련 관련 설정 (lr, epochs, batch_size, seed)
 - **device**: 디바이스 설정 (cuda/cpu)
 - **output**: 출력 관련 설정 (dir, filename) 
+
+### W&B(Weights & Biases) 사용법 (v4_wandb)
+W&B를 사용하여 실험을 추적하고 시각화하는 v4_wandb 실험의 설정 및 실행 방법:
+
+#### 환경 설정
+1. 환경 변수 설정 파일 생성:
+```bash
+# .env 파일 생성 (env_template.txt 참고)
+cp code/v4_wandb/env_template.txt code/v4_wandb/.env
+```
+
+2. .env 파일에 wandb 설정 추가:
+```env
+# Weights & Biases API 키
+WANDB_API_KEY=your_wandb_api_key_here
+
+# 프로젝트 설정
+WANDB_PROJECT=document-classification
+WANDB_ENTITY=your_wandb_entity_here
+```
+
+#### 실행 방법
+```bash
+# v4_wandb 폴더에서 실행
+cd code/v4_wandb
+uv run main.py
+```
+
+#### wandb 설정 관리
+config.yaml에서 wandb 관련 설정을 관리할 수 있습니다:
+- **wandb.enabled**: wandb 사용 여부 (true/false)
+- **wandb.project**: 프로젝트 이름
+- **wandb.entity**: 팀/개인 계정 이름
+- **wandb.run_name**: 실행 이름 (null이면 자동 생성)
+- **wandb.tags**: 태그 목록
+- **wandb.notes**: 실험 노트
+
+#### 로깅 정보
+wandb에서 다음 정보들을 자동으로 추적합니다:
+- 에포크별 training loss, accuracy, f1-score
+- 하이퍼파라미터 (학습률, 배치 크기, 모델 이름 등)
+- 시스템 메트릭 (GPU 사용률, 메모리 사용량 등)
+
+#### wandb 활성화
+```bash
+# config.yaml에서 wandb.enabled: true로 설정하거나
+# 커맨드라인에서 오버라이드
+uv run main.py wandb.enabled=true
+```
 
 ## 주의사항
 - 메모리 사용량 고려 (GPU 메모리 모니터링)

@@ -27,4 +27,13 @@ device: "cuda"  # "cuda" or "cpu"
 # Output configuration
 output:
   dir: "results"
-  filename: "pred.csv" 
+  filename: "pred.csv"
+
+# W&B configuration
+wandb:
+  enabled: false
+  project: "document-classification"
+  entity: null  # will be loaded from .env file
+  run_name: null  # auto-generated if null
+  tags: []
+  notes: "" 

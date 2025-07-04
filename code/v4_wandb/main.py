@@ -60,11 +60,18 @@ from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
 
+# 환경변수 및 wandb import
+from dotenv import load_dotenv
+import wandb
+
 # 로그 유틸리티 import
 import log_util as log
 
 # 현재 스크립트 위치를 작업 디렉토리로 설정
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# .env 파일 로드
+load_dotenv()
 
 # 데이터셋 클래스를 정의합니다.
 class ImageDataset(Dataset):
@@ -129,6 +136,35 @@ def main(cfg: DictConfig) -> None:
     # 설정 출력
     log.info(f"설정 로드 완료:")
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
+    
+    # wandb 초기화
+    if cfg.wandb.enabled:
+        wandb_config = {
+            "learning_rate": cfg.training.lr,
+            "epochs": cfg.training.epochs,
+            "batch_size": cfg.training.batch_size,
+            "model_name": cfg.model.name,
+            "img_size": cfg.data.img_size,
+            "seed": cfg.training.seed,
+            "num_classes": cfg.model.num_classes,
+            "pretrained": cfg.model.pretrained,
+        }
+        
+        # .env 파일에서 wandb 설정 불러오기
+        wandb_entity = os.getenv("WANDB_ENTITY") or cfg.wandb.entity
+        wandb_project = os.getenv("WANDB_PROJECT") or cfg.wandb.project
+        
+        wandb.init(
+            project=wandb_project,
+            entity=wandb_entity,
+            config=wandb_config,
+            name=cfg.wandb.run_name,
+            tags=cfg.wandb.tags,
+            notes=cfg.wandb.notes,
+        )
+        log.info(f"wandb 초기화 완료 - 프로젝트: {wandb_project}")
+    else:
+        log.info("wandb 비활성화됨")
     
     # 시드를 고정합니다.
     SEED = cfg.training.seed
@@ -237,6 +273,15 @@ def main(cfg: DictConfig) -> None:
         log_message += f"train_acc: {ret['train_acc']:.4f}, "
         log_message += f"train_f1: {ret['train_f1']:.4f}"
         log.info(log_message)
+        
+        # wandb 로깅
+        if cfg.wandb.enabled:
+            wandb.log({
+                "epoch": epoch + 1,
+                "train_loss": ret['train_loss'],
+                "train_acc": ret['train_acc'],
+                "train_f1": ret['train_f1'],
+            })
 
     """# 6. Inference & Save File
     * 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
@@ -266,6 +311,11 @@ def main(cfg: DictConfig) -> None:
 
     log.info(f"추론 완료 - 결과 파일 저장: {output_path}/{cfg.output.filename}")
     log.info("전체 프로세스 완료")
+
+    # wandb 세션 종료
+    if cfg.wandb.enabled:
+        wandb.finish()
+        log.info("wandb 세션 종료")
 
     print(pred_df.head())
 
