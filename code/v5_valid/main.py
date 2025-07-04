@@ -39,6 +39,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import train_test_split, StratifiedKFold
 
 # 환경변수 및 wandb import
 from dotenv import load_dotenv
@@ -56,7 +57,10 @@ load_dotenv()
 # 데이터셋 클래스를 정의합니다.
 class ImageDataset(Dataset):
     def __init__(self, csv, path, transform=None):
-        self.df = pd.read_csv(csv).values
+        if isinstance(csv, str):
+            self.df = pd.read_csv(csv).values
+        else:
+            self.df = csv.values
         self.path = path
         self.transform = transform
 
@@ -69,6 +73,59 @@ class ImageDataset(Dataset):
         if self.transform:
             img = self.transform(image=img)['image']
         return img, target
+
+
+# 인덱스 기반 데이터셋 클래스
+class IndexedImageDataset(Dataset):
+    def __init__(self, df, path, transform=None):
+        self.df = df
+        self.path = path
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        name, target = self.df.iloc[idx]
+        img = np.array(Image.open(os.path.join(self.path, name)))
+        if self.transform:
+            img = self.transform(image=img)['image']
+        return img, target
+
+
+# Early Stopping 클래스
+class EarlyStopping:
+    def __init__(self, patience=10, min_delta=0.001, monitor='val_loss', mode='min'):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.monitor = monitor
+        self.mode = mode
+        self.counter = 0
+        self.best_score = None
+        self.should_stop = False
+        
+    def __call__(self, val_metrics):
+        score = val_metrics[self.monitor]
+        
+        if self.best_score is None:
+            self.best_score = score
+        elif self.mode == 'min':
+            if score < self.best_score - self.min_delta:
+                self.best_score = score
+                self.counter = 0
+            else:
+                self.counter += 1
+        elif self.mode == 'max':
+            if score > self.best_score + self.min_delta:
+                self.best_score = score
+                self.counter = 0
+            else:
+                self.counter += 1
+                
+        if self.counter >= self.patience:
+            self.should_stop = True
+            
+        return self.should_stop
 
 # one epoch 학습을 위한 함수입니다.
 def train_one_epoch(loader, model, optimizer, loss_fn, device):
@@ -103,6 +160,38 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device):
         "train_loss": train_loss,
         "train_acc": train_acc,
         "train_f1": train_f1,
+    }
+
+    return ret
+
+
+# one epoch 검증을 위한 함수입니다.
+def validate_one_epoch(loader, model, loss_fn, device):
+    model.eval()
+    val_loss = 0
+    preds_list = []
+    targets_list = []
+
+    with torch.no_grad():
+        for image, targets in tqdm(loader, desc="Validating"):
+            image = image.to(device)
+            targets = targets.to(device)
+
+            preds = model(image)
+            loss = loss_fn(preds, targets)
+
+            val_loss += loss.item()
+            preds_list.extend(preds.argmax(dim=1).cpu().numpy())
+            targets_list.extend(targets.cpu().numpy())
+
+    val_loss /= len(loader)
+    val_acc = accuracy_score(targets_list, preds_list)
+    val_f1 = f1_score(targets_list, preds_list, average='macro')
+
+    ret = {
+        "val_loss": val_loss,
+        "val_acc": val_acc,
+        "val_f1": val_f1,
     }
 
     return ret
@@ -198,27 +287,14 @@ def main(cfg: DictConfig) -> None:
         ToTensorV2(),
     ])
 
-    # Dataset 정의
-    trn_dataset = ImageDataset(
-        f"{data_path}/train.csv",
-        f"{data_path}/train/",
-        transform=trn_transform
-    )
+    # 전체 훈련 데이터 로드
+    full_train_df = pd.read_csv(f"{data_path}/train.csv")
+    
+    # 테스트 데이터는 미리 로드
     tst_dataset = ImageDataset(
         f"{data_path}/sample_submission.csv",
         f"{data_path}/test/",
         transform=tst_transform
-    )
-    log.info(f"데이터셋 로드 완료 - 훈련 데이터: {len(trn_dataset)}개, 테스트 데이터: {len(tst_dataset)}개")
-
-    # DataLoader 정의
-    trn_loader = DataLoader(
-        trn_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=False
     )
     tst_loader = DataLoader(
         tst_dataset,
@@ -228,56 +304,276 @@ def main(cfg: DictConfig) -> None:
         pin_memory=True
     )
 
+    log.info(f"데이터셋 로드 완료 - 전체 훈련 데이터: {len(full_train_df)}개, 테스트 데이터: {len(tst_dataset)}개")
+
+    # Validation 전략에 따른 데이터 분할
+    validation_strategy = cfg.validation.strategy
+    
+    if validation_strategy == "holdout":
+        # Holdout validation
+        train_ratio = cfg.validation.holdout.train_ratio
+        stratify = cfg.validation.holdout.stratify
+        
+        if stratify:
+            train_df, val_df = train_test_split(
+                full_train_df, 
+                test_size=1-train_ratio, 
+                stratify=full_train_df['target'], 
+                random_state=SEED
+            )
+        else:
+            train_df, val_df = train_test_split(
+                full_train_df, 
+                test_size=1-train_ratio, 
+                random_state=SEED
+            )
+        
+        # Dataset 정의
+        trn_dataset = IndexedImageDataset(train_df, f"{data_path}/train/", transform=trn_transform)
+        val_dataset = IndexedImageDataset(val_df, f"{data_path}/train/", transform=tst_transform)
+        
+        # DataLoader 정의
+        trn_loader = DataLoader(
+            trn_dataset, batch_size=BATCH_SIZE, shuffle=True, 
+            num_workers=num_workers, pin_memory=True, drop_last=False
+        )
+        val_loader = DataLoader(
+            val_dataset, batch_size=BATCH_SIZE, shuffle=False, 
+            num_workers=num_workers, pin_memory=True
+        )
+        
+        log.info(f"Holdout 검증 설정 완료 - 훈련: {len(train_df)}개, 검증: {len(val_df)}개")
+        
+    elif validation_strategy == "kfold":
+        # K-Fold validation
+        n_splits = cfg.validation.kfold.n_splits
+        stratify = cfg.validation.kfold.stratify
+        
+        if stratify:
+            skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
+            folds = list(skf.split(full_train_df, full_train_df['target']))
+        else:
+            from sklearn.model_selection import KFold
+            kf = KFold(n_splits=n_splits, shuffle=True, random_state=SEED)
+            folds = list(kf.split(full_train_df))
+        
+        log.info(f"K-Fold 검증 설정 완료 - {n_splits}개 fold")
+        
+    elif validation_strategy == "none":
+        # No validation
+        trn_dataset = IndexedImageDataset(full_train_df, f"{data_path}/train/", transform=trn_transform)
+        trn_loader = DataLoader(
+            trn_dataset, batch_size=BATCH_SIZE, shuffle=True, 
+            num_workers=num_workers, pin_memory=True, drop_last=False
+        )
+        val_loader = None
+        log.info("검증 없이 전체 데이터로 학습")
+        
+    else:
+        raise ValueError(f"Unknown validation strategy: {validation_strategy}")
+
     """## 5. Train Model
     * 모델을 로드하고, 학습을 진행합니다.
     """
 
-    # load model
-    model = timm.create_model(
-        model_name,
-        pretrained=cfg.model.pretrained,
-        num_classes=cfg.model.num_classes
-    ).to(device)
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=LR)
-
-    log.info(f"모델 로드 완료 - {model_name}, 클래스 수: {cfg.model.num_classes}개")
-    log.info("학습 시작")
-
-    for epoch in range(EPOCHS):
-        ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
-        ret['epoch'] = epoch
-
-        log_message = f"Epoch {epoch+1}/{EPOCHS} 완료 - "
-        log_message += f"train_loss: {ret['train_loss']:.4f}, "
-        log_message += f"train_acc: {ret['train_acc']:.4f}, "
-        log_message += f"train_f1: {ret['train_f1']:.4f}"
-        log.info(log_message)
+    if validation_strategy == "kfold":
+        # K-Fold 교차 검증
+        final_predictions = []
         
-        # wandb 로깅
-        if cfg.wandb.enabled:
-            wandb.log({
-                "epoch": epoch + 1,
-                "train_loss": ret['train_loss'],
-                "train_acc": ret['train_acc'],
-                "train_f1": ret['train_f1'],
-            })
+        for fold_idx, (train_idx, val_idx) in enumerate(folds):
+            log.info(f"========== Fold {fold_idx + 1}/{n_splits} ==========")
+            
+            # 현재 fold의 데이터 분할
+            train_df = full_train_df.iloc[train_idx]
+            val_df = full_train_df.iloc[val_idx]
+            
+            # Dataset 정의
+            trn_dataset = IndexedImageDataset(train_df, f"{data_path}/train/", transform=trn_transform)
+            val_dataset = IndexedImageDataset(val_df, f"{data_path}/train/", transform=tst_transform)
+            
+            # DataLoader 정의
+            trn_loader = DataLoader(
+                trn_dataset, batch_size=BATCH_SIZE, shuffle=True, 
+                num_workers=num_workers, pin_memory=True, drop_last=False
+            )
+            val_loader = DataLoader(
+                val_dataset, batch_size=BATCH_SIZE, shuffle=False, 
+                num_workers=num_workers, pin_memory=True
+            )
+            
+            # 모델 초기화
+            model = timm.create_model(
+                model_name,
+                pretrained=cfg.model.pretrained,
+                num_classes=cfg.model.num_classes
+            ).to(device)
+            loss_fn = nn.CrossEntropyLoss()
+            optimizer = Adam(model.parameters(), lr=LR)
+            
+            log.info(f"Fold {fold_idx + 1} 모델 로드 완료 - 훈련: {len(train_df)}개, 검증: {len(val_df)}개")
+            
+            # Early stopping 초기화
+            early_stopping = None
+            if cfg.validation.early_stopping.enabled:
+                early_stopping = EarlyStopping(
+                    patience=cfg.validation.early_stopping.patience,
+                    min_delta=cfg.validation.early_stopping.min_delta,
+                    monitor=cfg.validation.early_stopping.monitor,
+                    mode=cfg.validation.early_stopping.mode
+                )
+            
+            # 학습 시작
+            for epoch in range(EPOCHS):
+                # 훈련
+                train_ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
+                # 검증
+                val_ret = validate_one_epoch(val_loader, model, loss_fn, device=device)
+                
+                # 결과 합치기
+                ret = {**train_ret, **val_ret, 'epoch': epoch, 'fold': fold_idx + 1}
+                
+                log_message = f"Fold {fold_idx + 1} Epoch {epoch+1}/{EPOCHS} 완료 - "
+                log_message += f"train_loss: {ret['train_loss']:.4f}, "
+                log_message += f"train_acc: {ret['train_acc']:.4f}, "
+                log_message += f"val_loss: {ret['val_loss']:.4f}, "
+                log_message += f"val_acc: {ret['val_acc']:.4f}, "
+                log_message += f"val_f1: {ret['val_f1']:.4f}"
+                log.info(log_message)
+                
+                # wandb 로깅
+                if cfg.wandb.enabled:
+                    wandb.log({
+                        "fold": fold_idx + 1,
+                        "epoch": epoch + 1,
+                        "train_loss": ret['train_loss'],
+                        "train_acc": ret['train_acc'],
+                        "train_f1": ret['train_f1'],
+                        "val_loss": ret['val_loss'],
+                        "val_acc": ret['val_acc'],
+                        "val_f1": ret['val_f1'],
+                    })
+                
+                # Early stopping 체크
+                if early_stopping is not None:
+                    if early_stopping(ret):
+                        log.info(f"Early stopping at epoch {epoch + 1}")
+                        break
+            
+            # 현재 fold의 테스트 예측
+            log.info(f"Fold {fold_idx + 1} 테스트 예측 시작")
+            fold_predictions = []
+            model.eval()
+            with torch.no_grad():
+                for image, _ in tqdm(tst_loader, desc=f"Fold {fold_idx + 1} Inference"):
+                    image = image.to(device)
+                    preds = model(image)
+                    fold_predictions.extend(preds.softmax(dim=1).cpu().numpy())
+            
+            final_predictions.append(fold_predictions)
+            log.info(f"Fold {fold_idx + 1} 완료")
+        
+        # 앙상블 예측
+        log.info("K-Fold 앙상블 예측 계산 중...")
+        ensemble_predictions = np.mean(final_predictions, axis=0)
+        final_preds = np.argmax(ensemble_predictions, axis=1)
+        
+    else:
+        # Holdout 또는 No validation
+        # 모델 초기화
+        model = timm.create_model(
+            model_name,
+            pretrained=cfg.model.pretrained,
+            num_classes=cfg.model.num_classes
+        ).to(device)
+        loss_fn = nn.CrossEntropyLoss()
+        optimizer = Adam(model.parameters(), lr=LR)
+        
+        log.info(f"모델 로드 완료 - {model_name}, 클래스 수: {cfg.model.num_classes}개")
+        
+        # Early stopping 초기화
+        early_stopping = None
+        if val_loader is not None and cfg.validation.early_stopping.enabled:
+            early_stopping = EarlyStopping(
+                patience=cfg.validation.early_stopping.patience,
+                min_delta=cfg.validation.early_stopping.min_delta,
+                monitor=cfg.validation.early_stopping.monitor,
+                mode=cfg.validation.early_stopping.mode
+            )
+        
+        log.info("학습 시작")
+        
+        for epoch in range(EPOCHS):
+            # 훈련
+            train_ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
+            ret = {**train_ret, 'epoch': epoch}
+            
+            # 검증 (holdout인 경우)
+            if val_loader is not None:
+                val_ret = validate_one_epoch(val_loader, model, loss_fn, device=device)
+                ret.update(val_ret)
+                
+                log_message = f"Epoch {epoch+1}/{EPOCHS} 완료 - "
+                log_message += f"train_loss: {ret['train_loss']:.4f}, "
+                log_message += f"train_acc: {ret['train_acc']:.4f}, "
+                log_message += f"val_loss: {ret['val_loss']:.4f}, "
+                log_message += f"val_acc: {ret['val_acc']:.4f}, "
+                log_message += f"val_f1: {ret['val_f1']:.4f}"
+                log.info(log_message)
+                
+                # wandb 로깅
+                if cfg.wandb.enabled:
+                    wandb.log({
+                        "epoch": epoch + 1,
+                        "train_loss": ret['train_loss'],
+                        "train_acc": ret['train_acc'],
+                        "train_f1": ret['train_f1'],
+                        "val_loss": ret['val_loss'],
+                        "val_acc": ret['val_acc'],
+                        "val_f1": ret['val_f1'],
+                    })
+            else:
+                # No validation
+                log_message = f"Epoch {epoch+1}/{EPOCHS} 완료 - "
+                log_message += f"train_loss: {ret['train_loss']:.4f}, "
+                log_message += f"train_acc: {ret['train_acc']:.4f}, "
+                log_message += f"train_f1: {ret['train_f1']:.4f}"
+                log.info(log_message)
+                
+                # wandb 로깅
+                if cfg.wandb.enabled:
+                    wandb.log({
+                        "epoch": epoch + 1,
+                        "train_loss": ret['train_loss'],
+                        "train_acc": ret['train_acc'],
+                        "train_f1": ret['train_f1'],
+                    })
+            
+            # Early stopping 체크
+            if early_stopping is not None:
+                if early_stopping(ret):
+                    log.info(f"Early stopping at epoch {epoch + 1}")
+                    break
 
     """# 6. Inference & Save File
     * 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
     """
 
-    log.info("추론 시작")
+    if validation_strategy == "kfold":
+        # K-Fold는 이미 앙상블 예측 완료
+        log.info("K-Fold 앙상블 예측 사용")
+        preds_list = final_preds
+    else:
+        # Holdout 또는 No validation
+        log.info("추론 시작")
+        
+        preds_list = []
+        model.eval()
+        for image, _ in tqdm(tst_loader):
+            image = image.to(device)
 
-    preds_list = []
-
-    model.eval()
-    for image, _ in tqdm(tst_loader):
-        image = image.to(device)
-
-        with torch.no_grad():
-            preds = model(image)
-        preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
+            with torch.no_grad():
+                preds = model(image)
+            preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
 
     pred_df = pd.DataFrame(tst_dataset.df, columns=['ID', 'target'])
     pred_df['target'] = preds_list

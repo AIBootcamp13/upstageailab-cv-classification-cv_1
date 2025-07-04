@@ -21,6 +21,29 @@ training:
   batch_size: 32
   seed: 42
 
+# Validation configuration
+validation:
+  # Validation strategy: "holdout", "kfold", or "none"
+  strategy: "holdout"  # "holdout", "kfold", "none"
+  
+  # Holdout configuration
+  holdout:
+    train_ratio: 0.8
+    stratify: true
+    
+  # K-fold configuration
+  kfold:
+    n_splits: 5
+    stratify: true
+    
+  # Early stopping configuration
+  early_stopping:
+    enabled: true
+    patience: 10
+    min_delta: 0.001
+    monitor: "val_loss"  # "val_loss", "val_acc", "val_f1"
+    mode: "min"  # "min" for loss, "max" for accuracy/f1
+
 # Device configuration
 device: "cuda"  # "cuda" or "cpu"
 
