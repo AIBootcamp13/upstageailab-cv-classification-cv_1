@@ -100,4 +100,35 @@ uv run main.py validation.strategy=none
 - **Holdout/No validation**: 단일 모델의 예측 결과
 - **K-Fold**: 모든 fold의 앙상블 예측 결과 (softmax 평균 후 argmax)
 
-각 fold별 성능과 최종 앙상블 성능이 로그와 WandB에 기록됩니다. 
+각 fold별 성능과 최종 앙상블 성능이 로그와 WandB에 기록됩니다.
+
+## 테스트 실행
+
+구현된 기능들이 올바르게 동작하는지 pytest로 확인할 수 있습니다.
+
+### 전체 테스트 실행
+```bash
+# 모든 테스트 실행
+uv run python run_tests.py
+
+# 또는 개별 테스트 파일 실행
+uv run pytest tests/test_main.py -v
+uv run pytest tests/test_features.py -v
+uv run pytest tests/test_main.py tests/test_features.py -v
+```
+
+### 기능별 테스트
+```bash
+# 기능별 개별 테스트
+uv run python tests/test_features.py
+```
+
+### 테스트 커버리지
+- ✅ **데이터 로딩**: ImageDataset, IndexedImageDataset 클래스
+- ✅ **8:2 Holdout**: 데이터 분할 및 stratified 검증
+- ✅ **K-Fold**: 교차 검증 및 앙상블 기능
+- ✅ **Early Stopping**: 조기 종료 로직 및 다양한 모니터링 지표
+- ✅ **학습/검증**: train_one_epoch, validate_one_epoch 함수
+- ✅ **추론**: 예측 결과 생성 및 포맷 검증
+
+모든 테스트가 통과하면 구현된 기능들이 올바르게 동작함을 확인할 수 있습니다. 
