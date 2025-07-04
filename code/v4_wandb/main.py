@@ -310,6 +310,32 @@ def main(cfg: DictConfig) -> None:
     pred_df.to_csv(f"{output_path}/{cfg.output.filename}", index=False)
 
     log.info(f"추론 완료 - 결과 파일 저장: {output_path}/{cfg.output.filename}")
+    
+    # wandb 아티팩트 업로드
+    if cfg.wandb.enabled:
+        # 아티팩트 생성 및 업로드
+        artifact = wandb.Artifact(
+            name="predictions",
+            type="predictions",
+            description=f"Model predictions using {model_name}",
+            metadata={
+                "model_name": model_name,
+                "epochs": EPOCHS,
+                "batch_size": BATCH_SIZE,
+                "learning_rate": LR,
+                "img_size": img_size,
+                "num_predictions": len(pred_df),
+                "output_filename": cfg.output.filename,
+            }
+        )
+        
+        # 결과 파일을 아티팩트에 추가
+        artifact.add_file(f"{output_path}/{cfg.output.filename}")
+        
+        # 아티팩트 로깅
+        wandb.log_artifact(artifact)
+        log.info(f"wandb 아티팩트 업로드 완료 - 예측 결과 파일: {cfg.output.filename}")
+    
     log.info("전체 프로세스 완료")
 
     # wandb 세션 종료

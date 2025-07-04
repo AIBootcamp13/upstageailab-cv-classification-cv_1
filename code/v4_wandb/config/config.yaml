@@ -32,8 +32,8 @@ output:
 # W&B configuration
 wandb:
   enabled: false
-  project: "document-classification"
+  project: null
   entity: null  # will be loaded from .env file
-  run_name: null  # auto-generated if null
+  run_name: "jhryu_v4_wandb_test"  # auto-generated if null
   tags: []
-  notes: "" 
+  notes: ""

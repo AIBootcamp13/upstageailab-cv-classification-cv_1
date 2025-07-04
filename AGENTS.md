@@ -175,6 +175,7 @@ wandb에서 다음 정보들을 자동으로 추적합니다:
 - 에포크별 training loss, accuracy, f1-score
 - 하이퍼파라미터 (학습률, 배치 크기, 모델 이름 등)
 - 시스템 메트릭 (GPU 사용률, 메모리 사용량 등)
+- 추론 결과 파일 (Artifacts로 버전 관리)
 
 #### wandb 활성화
 ```bash
