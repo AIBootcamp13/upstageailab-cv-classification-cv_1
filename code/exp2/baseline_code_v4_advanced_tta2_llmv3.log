@@ -1,0 +1,75 @@
+[25-07-03 22:51:05] [INFO] 완전한 재현성 설정이 활성화되었습니다.
+[25-07-03 22:51:05] [INFO] Using device: cpu
+[25-07-03 22:51:07] [INFO] Train samples: 1256
+[25-07-03 22:51:07] [INFO] Validation samples: 314
+[25-07-03 22:51:07] [INFO] Train dataset: 1256
+[25-07-03 22:51:07] [INFO] Validation dataset: 314
+[25-07-03 22:51:07] [INFO] Test dataset: 3140
+[25-07-03 22:51:07] [INFO] Model: microsoft/layoutlmv3-base
+[25-07-03 22:51:07] [INFO] Number of parameters: 125,729,425
+[25-07-03 22:51:08] [INFO] Starting training...
+[25-07-03 22:51:08] [INFO] 
+=== Epoch 1/20 ===
+[25-07-03 23:23:33] [INFO] 💾 Best model saved! F1: 0.0070
+[25-07-03 23:23:33] [INFO] train_train_loss: 2.8369 | train_train_acc: 0.0637 | train_train_f1: 0.0471 | train_epoch: 0.0000 | val_loss: 2.8206 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 0.0000 | lr: 0.0000
+[25-07-03 23:23:33] [INFO] 
+=== Epoch 2/20 ===
+[25-07-03 23:47:57] [INFO] train_train_loss: 2.8341 | train_train_acc: 0.0597 | train_train_f1: 0.0474 | train_epoch: 1.0000 | val_loss: 2.8187 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 1.0000 | lr: 0.0000
+[25-07-03 23:47:57] [INFO] 
+=== Epoch 3/20 ===
+[25-07-04 00:13:14] [INFO] train_train_loss: 2.8269 | train_train_acc: 0.0661 | train_train_f1: 0.0488 | train_epoch: 2.0000 | val_loss: 2.8184 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 2.0000 | lr: 0.0000
+[25-07-04 00:13:14] [INFO] 
+=== Epoch 4/20 ===
+[25-07-04 01:03:24] [INFO] train_train_loss: 2.8257 | train_train_acc: 0.0669 | train_train_f1: 0.0522 | train_epoch: 3.0000 | val_loss: 2.8182 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 3.0000 | lr: 0.0000
+[25-07-04 01:03:24] [INFO] 
+=== Epoch 5/20 ===
+[25-07-04 01:32:54] [INFO] train_train_loss: 2.8298 | train_train_acc: 0.0541 | train_train_f1: 0.0437 | train_epoch: 4.0000 | val_loss: 2.8177 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 4.0000 | lr: 0.0000
+[25-07-04 01:32:54] [INFO] 
+=== Epoch 6/20 ===
+[25-07-04 02:05:08] [INFO] train_train_loss: 2.8265 | train_train_acc: 0.0573 | train_train_f1: 0.0491 | train_epoch: 5.0000 | val_loss: 2.8178 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 5.0000 | lr: 0.0000
+[25-07-04 02:05:08] [INFO] 
+=== Epoch 7/20 ===
+[25-07-04 02:32:39] [INFO] train_train_loss: 2.8235 | train_train_acc: 0.0557 | train_train_f1: 0.0424 | train_epoch: 6.0000 | val_loss: 2.8177 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 6.0000 | lr: 0.0000
+[25-07-04 02:32:39] [INFO] 
+=== Epoch 8/20 ===
+[25-07-04 02:57:20] [INFO] train_train_loss: 2.8250 | train_train_acc: 0.0605 | train_train_f1: 0.0490 | train_epoch: 7.0000 | val_loss: 2.8177 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 7.0000 | lr: 0.0000
+[25-07-04 02:57:20] [INFO] 
+=== Epoch 9/20 ===
+[25-07-04 03:28:14] [INFO] train_train_loss: 2.8243 | train_train_acc: 0.0470 | train_train_f1: 0.0380 | train_epoch: 8.0000 | val_loss: 2.8175 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 8.0000 | lr: 0.0000
+[25-07-04 03:28:14] [INFO] 
+=== Epoch 10/20 ===
+[25-07-04 04:12:36] [INFO] train_train_loss: 2.8263 | train_train_acc: 0.0510 | train_train_f1: 0.0421 | train_epoch: 9.0000 | val_loss: 2.8175 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 9.0000 | lr: 0.0000
+[25-07-04 04:12:36] [INFO] 
+=== Epoch 11/20 ===
+[25-07-04 04:57:44] [INFO] train_train_loss: 2.8244 | train_train_acc: 0.0621 | train_train_f1: 0.0491 | train_epoch: 10.0000 | val_loss: 2.8175 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 10.0000 | lr: 0.0000
+[25-07-04 04:57:44] [INFO] 
+=== Epoch 12/20 ===
+[25-07-04 05:19:22] [INFO] train_train_loss: 2.8209 | train_train_acc: 0.0589 | train_train_f1: 0.0487 | train_epoch: 11.0000 | val_loss: 2.8175 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 11.0000 | lr: 0.0000
+[25-07-04 05:19:22] [INFO] 
+=== Epoch 13/20 ===
+[25-07-04 05:41:28] [INFO] train_train_loss: 2.8240 | train_train_acc: 0.0645 | train_train_f1: 0.0532 | train_epoch: 12.0000 | val_loss: 2.8174 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 12.0000 | lr: 0.0000
+[25-07-04 05:41:28] [INFO] 
+=== Epoch 14/20 ===
+[25-07-04 06:02:08] [INFO] train_train_loss: 2.8206 | train_train_acc: 0.0629 | train_train_f1: 0.0518 | train_epoch: 13.0000 | val_loss: 2.8173 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 13.0000 | lr: 0.0000
+[25-07-04 06:02:08] [INFO] 
+=== Epoch 15/20 ===
+[25-07-04 06:23:14] [INFO] train_train_loss: 2.8229 | train_train_acc: 0.0645 | train_train_f1: 0.0547 | train_epoch: 14.0000 | val_loss: 2.8173 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 14.0000 | lr: 0.0000
+[25-07-04 06:23:14] [INFO] 
+=== Epoch 16/20 ===
+[25-07-04 06:43:10] [INFO] train_train_loss: 2.8205 | train_train_acc: 0.0541 | train_train_f1: 0.0476 | train_epoch: 15.0000 | val_loss: 2.8172 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 15.0000 | lr: 0.0000
+[25-07-04 06:43:10] [INFO] 
+=== Epoch 17/20 ===
+[25-07-04 07:03:00] [INFO] train_train_loss: 2.8191 | train_train_acc: 0.0748 | train_train_f1: 0.0624 | train_epoch: 16.0000 | val_loss: 2.8172 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 16.0000 | lr: 0.0000
+[25-07-04 07:03:00] [INFO] 
+=== Epoch 18/20 ===
+[25-07-04 07:35:31] [INFO] train_train_loss: 2.8214 | train_train_acc: 0.0565 | train_train_f1: 0.0480 | train_epoch: 17.0000 | val_loss: 2.8172 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 17.0000 | lr: 0.0000
+[25-07-04 07:35:31] [INFO] 
+=== Epoch 19/20 ===
+[25-07-04 07:56:47] [INFO] train_train_loss: 2.8185 | train_train_acc: 0.0629 | train_train_f1: 0.0542 | train_epoch: 18.0000 | val_loss: 2.8172 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 18.0000 | lr: 0.0000
+[25-07-04 07:56:47] [INFO] 
+=== Epoch 20/20 ===
+[25-07-04 08:17:11] [INFO] train_train_loss: 2.8251 | train_train_acc: 0.0621 | train_train_f1: 0.0539 | train_epoch: 19.0000 | val_loss: 2.8172 | val_acc: 0.0637 | val_f1: 0.0070 | epoch: 19.0000 | lr: 0.0000
+[25-07-04 08:17:11] [INFO] 
+🏆 Loading best model (F1: 0.0070)
+[25-07-04 08:17:12] [INFO] 
+Starting inference with Test Time Augmentation...

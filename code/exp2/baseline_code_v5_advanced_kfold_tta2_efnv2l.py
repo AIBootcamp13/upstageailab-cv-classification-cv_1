@@ -347,13 +347,13 @@ log.info(f"💻 Using device: {device}")
 data_path = '../../input/data'
 
 # model config
-model_name = 'efficientnet_b3'  # 더 좋은 모델 사용
+model_name = 'tf_efficientnetv2_l'  # 더 좋은 모델 사용
 
 # training config
-img_size = 224  # 이미지 크기 대폭 확대
-LR = 2e-4  # 더 낮은 학습률
+img_size = 343  # 이미지 크기 대폭 확대
+LR = 1e-4  # 더 낮은 학습률
 EPOCHS = 20  # 충분한 epoch
-BATCH_SIZE = 16  # 큰 모델에 맞춰 배치 크기 조정
+BATCH_SIZE = 10  # 큰 모델에 맞춰 배치 크기 조정
 num_workers = 0
 weight_decay = 1e-4
 label_smoothing = 0.1
@@ -555,9 +555,9 @@ assert (sample_submission_df['ID'] == pred_df['ID']).all()
 
 output_path = "./output"
 os.makedirs(output_path, exist_ok=True)
-pred_df.to_csv(f"{output_path}/pred_advanced_kfold_tta2.csv", index=False)
+pred_df.to_csv(f"{output_path}/pred_advanced_kfold_tta2_efnv2l.csv", index=False)
 
-log.info(f"\n✅ Ensemble prediction completed and saved to {output_path}/pred_advanced_kfold_tta2.csv")
+log.info(f"\n✅ Ensemble prediction completed and saved to {output_path}/pred_advanced_kfold_tta2_efnv2l.csv")
 log.info(f"📈 Final K-Fold CV Score: {mean_score:.4f} ± {std_score:.4f}")
 
 # 메모리 정리

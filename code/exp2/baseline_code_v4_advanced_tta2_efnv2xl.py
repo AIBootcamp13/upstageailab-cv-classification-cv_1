@@ -1,25 +1,26 @@
 # -*- coding: utf-8 -*-
-"""baseline_code_kfold.py
+"""baseline_code_advanced_tta2.py
 
-K-Fold Cross Validation version of the document type classification baseline code.
+Advanced version with proper TTA implementation.
 
 ## Improvements Applied:
-- Stratified 5-Fold Cross Validation
 - Better model architecture (EfficientNet)
 - Larger image size (224x224)
 - Enhanced data augmentation
 - Learning rate scheduler
+- Validation data split
 - Label smoothing loss
 - Mixed precision training
-- Test time augmentation (TTA)
-- Model ensemble from all folds
+- Proper Test time augmentation (TTA)
+- More training epochs
 
 ## Contents
 - Prepare Environments
 - Import Library & Define Functions
 - Hyper-parameters
-- K-Fold Cross Validation Training
-- Ensemble Inference & Save File
+- Load Data
+- Train Model
+- Inference & Save File
 """
 
 import os
@@ -42,8 +43,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
-from sklearn.model_selection import StratifiedKFold
-import gc
+from sklearn.model_selection import train_test_split
 
 # 로그 유틸리티 import
 import sys
@@ -51,35 +51,30 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 현재 파일의 상위 디렉토리를 Python path에 추가
 import utils.log_util as log
 
-
 # 시드를 고정합니다.
-def set_seed(seed):
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    
-    # CUDA 10.2+ 환경에서 결정적 연산을 위한 환경 변수 설정
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    
-    # 완전한 재현성을 위한 설정
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    
-    # CUDA 환경에서 결정적 연산 설정 (선택적)
-    try:
-        torch.use_deterministic_algorithms(True)
-        log.info("완전한 재현성 설정이 활성화되었습니다.")
-    except Exception as e:
-        log.info(f"torch.use_deterministic_algorithms(True) 설정 실패: {e}")
-        log.info("기본 재현성 설정만 사용됩니다.")
-
 SEED = 42
-set_seed(SEED)
-log.info(f"🌱 Random seed set to {SEED}")
+os.environ['PYTHONHASHSEED'] = str(SEED)
+
+# CUDA 10.2+ 환경에서 결정적 연산을 위한 환경 변수 설정
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+
+# 완전한 재현성을 위한 설정
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+# CUDA 환경에서 결정적 연산 설정 (선택적)
+try:
+    torch.use_deterministic_algorithms(True)
+    log.info("완전한 재현성 설정이 활성화되었습니다.")
+except Exception as e:
+    log.info(f"torch.use_deterministic_algorithms(True) 설정 실패: {e}")
+    log.info("기본 재현성 설정만 사용됩니다.")
 
 # 현재 스크립트 위치를 작업 디렉토리로 설정
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -159,8 +154,8 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler):
 
     return ret
 
-# 검증을 위한 함수입니다.
-def validate_one_epoch(loader, model, loss_fn, device):
+# 검증을 위한 함수입니다. (TTA 적용)
+def validate_one_epoch(loader, model, loss_fn, device, use_tta=True, tta_count=3):
     model.eval()
     val_loss = 0
     preds_list = []
@@ -172,12 +167,25 @@ def validate_one_epoch(loader, model, loss_fn, device):
             image = image.to(device)
             targets = targets.to(device)
 
-            with autocast():
-                preds = model(image)
-                loss = loss_fn(preds, targets)
+            if use_tta:
+                # TTA를 위한 여러 번 예측
+                batch_preds = []
+                for _ in range(tta_count):
+                    with autocast():
+                        preds = model(image)
+                        batch_preds.append(preds.softmax(dim=1))
+                
+                # 평균내기
+                final_preds = torch.stack(batch_preds).mean(0)
+                loss = loss_fn(final_preds.log(), targets)  # log_softmax로 변환
+            else:
+                with autocast():
+                    preds = model(image)
+                    loss = loss_fn(preds, targets)
+                    final_preds = preds.softmax(dim=1)
 
             val_loss += loss.item()
-            preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
+            preds_list.extend(final_preds.argmax(dim=1).detach().cpu().numpy())
             targets_list.extend(targets.detach().cpu().numpy())
 
             pbar.set_description(f"Validation - Loss: {loss.item():.4f}")
@@ -313,27 +321,11 @@ def predict_with_tta(model, dataset, device, img_size):
                 
                 all_preds.append(preds.softmax(dim=1))
             
-            # 예측 평균 (확률 분포 반환)
+            # 예측 평균
             final_pred = torch.stack(all_preds).mean(0)
-            predictions.append(final_pred.squeeze(0).detach().cpu().numpy())
+            predictions.extend(final_pred.argmax(dim=1).detach().cpu().numpy())
     
-    return np.array(predictions)
-
-# 앙상블 예측 함수
-def predict_ensemble(models, dataset, device, img_size):
-    all_predictions = []
-    
-    for i, model in enumerate(models):
-        log.info(f"🔮 Predicting with Fold {i+1} model...")
-        fold_predictions = predict_with_tta(model, dataset, device, img_size)
-        all_predictions.append(fold_predictions)
-    
-    # 모든 폴드의 예측을 평균 (shape: [num_samples, num_classes])
-    ensemble_predictions = np.mean(all_predictions, axis=0)
-    # 각 샘플에 대해 argmax 적용
-    final_predictions = np.argmax(ensemble_predictions, axis=1)
-    
-    return final_predictions
+    return predictions
 
 """## Hyper-parameters
 * 학습 및 추론에 필요한 하이퍼파라미터들을 정의합니다.
@@ -341,28 +333,25 @@ def predict_ensemble(models, dataset, device, img_size):
 
 # device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-log.info(f"💻 Using device: {device}")
+log.info(f"Using device: {device}")
 
 # data config
 data_path = '../../input/data'
 
 # model config
-model_name = 'efficientnet_b3'  # 더 좋은 모델 사용
-
+# model_name = 'tf_efficientnetv2_l'  # EfficientNet v2 Large 모델 사용
+model_name = 'tf_efficientnetv2_xl'  # EfficientNet v2 Large 모델 사용
 # training config
-img_size = 224  # 이미지 크기 대폭 확대
-LR = 2e-4  # 더 낮은 학습률
+img_size = 343  # 가장 작은 이미지 크기에 맞춰 설정 (업스케일링 완전 방지)
+LR = 1e-4  # 더 큰 모델에 맞춰 학습률 조정
 EPOCHS = 20  # 충분한 epoch
-BATCH_SIZE = 16  # 큰 모델에 맞춰 배치 크기 조정
+BATCH_SIZE = 10  # 343 크기에 맞춰 배치 크기 조정
 num_workers = 0
 weight_decay = 1e-4
 label_smoothing = 0.1
 
-# K-Fold config
-K_FOLDS = 5
-
-"""## Data Preparation
-* 데이터 로드 및 transform 정의
+"""## Load Data
+* 학습, 검증, 테스트 데이터셋과 로더를 정의합니다.
 """
 
 # 강화된 augmentation을 위한 transform 코드
@@ -384,186 +373,153 @@ trn_transform = A.Compose([
 # validation/test image 변환을 위한 transform 코드
 # tst_transform_tta = val_transform_tta = trn_transform
 
-# 데이터 로드
+
+# 검증 데이터 분할
 train_df = pd.read_csv(f"{data_path}/train.csv")
-log.info(f"📂 Total training samples: {len(train_df)}")
+train_data, val_data = train_test_split(
+    train_df, 
+    test_size=0.2, 
+    stratify=train_df['target'], 
+    random_state=SEED
+)
 
-# 클래스 분포 확인
-class_counts = train_df['target'].value_counts().sort_index()
-log.info(f"📊 Class distribution: {class_counts.to_dict()}")
+log.info(f"Train samples: {len(train_data)}")
+log.info(f"Validation samples: {len(val_data)}")
 
-"""## K-Fold Cross Validation Training
-* 5폴드 층화 교차검증으로 모델을 학습합니다.
-"""
-
-# K-Fold 정의
-skf = StratifiedKFold(n_splits=K_FOLDS, shuffle=True, random_state=SEED)
-
-# 폴드별 결과 저장
-fold_scores = []
-best_models = []
-
-log.info(f"\n🔄 Starting {K_FOLDS}-Fold Cross Validation Training...")
-
-for fold, (train_idx, val_idx) in enumerate(skf.split(train_df, train_df['target'])):
-    log.info(f"\n{'='*60}")
-    log.info(f"🔥 FOLD {fold+1}/{K_FOLDS}")
-    log.info(f"{'='*60}")
-    
-    # 폴드별 데이터 분할
-    train_fold = train_df.iloc[train_idx].reset_index(drop=True)
-    val_fold = train_df.iloc[val_idx].reset_index(drop=True)
-    
-    log.info(f"📚 Train samples: {len(train_fold)}")
-    log.info(f"📝 Validation samples: {len(val_fold)}")
-    
-    # 데이터셋 생성
-    trn_dataset = ImageDataset(train_fold, f"{data_path}/train/", transform=trn_transform)
-    val_dataset = ImageDataset(val_fold, f"{data_path}/train/", transform=None)  # TTA에서 원본 이미지를 직접 변형하므로 여기서는 None
-    
-    # DataLoader 생성
-    trn_loader = DataLoader(
-        trn_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=False
-    )
-    # val_loader는 TTA에서 사용하지 않으므로 생성하지 않음
-    
-    # 모델 초기화 (매 폴드마다 새로 시작)
-    model = timm.create_model(
-        model_name,
-        pretrained=True,
-        num_classes=17
-    ).to(device)
-    
-    log.info(f"🏗️ Model: {model_name}")
-    log.info(f"🔢 Number of parameters: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # Loss function, optimizer, scheduler 정의
-    loss_fn = LabelSmoothingLoss(classes=17, smoothing=label_smoothing)
-    optimizer = Adam(model.parameters(), lr=LR, weight_decay=weight_decay)
-    scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)
-    scaler = GradScaler()
-    
-    # 최고 성능 모델 저장을 위한 변수
-    best_val_f1 = 0.0
-    best_model_state = None
-    
-    log.info(f"🚀 Starting Fold {fold+1} training...")
-    
-    # 폴드별 학습
-    for epoch in range(EPOCHS):
-        log.info(f"\n--- Fold {fold+1} | Epoch {epoch+1}/{EPOCHS} ---")
-        
-        # Training
-        train_ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device, scaler)
-        
-        # Validation
-        val_ret = validate_one_epoch_tta(val_fold, model, loss_fn, device, img_size, data_path)
-        
-        # Learning rate scheduler step
-        scheduler.step()
-        
-        # 결과 출력
-        current_lr = optimizer.param_groups[0]['lr']
-        
-        # 최고 성능 모델 저장
-        if val_ret['val_f1'] > best_val_f1:
-            best_val_f1 = val_ret['val_f1']
-            best_model_state = model.state_dict().copy()
-            log.info(f"💾 Fold {fold+1} Best model updated! F1: {best_val_f1:.4f}")
-        
-        # 로그 출력
-        log_msg = f"train_loss: {train_ret['train_loss']:.4f} | "
-        log_msg += f"train_acc: {train_ret['train_acc']:.4f} | "
-        log_msg += f"train_f1: {train_ret['train_f1']:.4f} | "
-        log_msg += f"val_loss: {val_ret['val_loss']:.4f} | "
-        log_msg += f"val_acc: {val_ret['val_acc']:.4f} | "
-        log_msg += f"val_f1: {val_ret['val_f1']:.4f} | "
-        log_msg += f"lr: {current_lr:.6f}"
-        
-        log.info(log_msg)
-    
-    # 폴드 완료
-    fold_scores.append(best_val_f1)
-    
-    # 최고 성능 모델 저장
-    model.load_state_dict(best_model_state)
-    best_models.append(model.state_dict().copy())
-    
-    log.info(f"\n🎯 Fold {fold+1} completed! Best F1: {best_val_f1:.4f}")
-    
-    # 메모리 정리
-    del model, optimizer, scheduler, scaler, trn_loader
-    del trn_dataset, val_dataset, train_fold, val_fold
-    torch.cuda.empty_cache()
-    gc.collect()
-
-# K-Fold 결과 요약
-log.info(f"\n{'='*60}")
-log.info(f"📊 K-FOLD CROSS VALIDATION RESULTS")
-log.info(f"{'='*60}")
-
-mean_score = np.mean(fold_scores)
-std_score = np.std(fold_scores)
-
-log.info(f"📈 Individual fold scores: {[f'{score:.4f}' for score in fold_scores]}")
-log.info(f"🎯 Mean F1 Score: {mean_score:.4f}")
-log.info(f"📏 Standard Deviation: {std_score:.4f}")
-log.info(f"📊 Score Range: {mean_score:.4f} ± {std_score:.4f}")
-log.info(f"⬇️ Min Score: {min(fold_scores):.4f}")
-log.info(f"⬆️ Max Score: {max(fold_scores):.4f}")
-
-"""## Ensemble Inference & Save File
-* 모든 폴드의 모델을 앙상블하여 테스트 이미지에 대한 추론을 진행합니다.
-"""
-
-log.info(f"\n🚀 Starting Ensemble Prediction...")
-
-# 테스트 데이터셋 생성
+# Dataset 정의
+trn_dataset = ImageDataset(
+    train_data,
+    f"{data_path}/train/",
+    transform=trn_transform
+)
+val_dataset = ImageDataset(
+    val_data,
+    f"{data_path}/train/",
+    transform=None  # TTA에서 원본 이미지를 직접 변형하므로 여기서는 None
+)
 tst_dataset = ImageDataset(
     f"{data_path}/sample_submission.csv",
     f"{data_path}/test/",
     transform=None  # TTA에서 원본 이미지를 직접 변형하므로 여기서는 None
 )
 
-# 앙상블을 위해 모든 폴드의 모델 로드
-ensemble_models = []
-for fold in range(K_FOLDS):
-    model = timm.create_model(
-        model_name,
-        pretrained=True,
-        num_classes=17
-    ).to(device)
-    model.load_state_dict(best_models[fold])
-    ensemble_models.append(model)
-    log.info(f"✅ Loaded Fold {fold+1} model")
+log.info(f"Train dataset: {len(trn_dataset)}")
+log.info(f"Validation dataset: {len(val_dataset)}")
+log.info(f"Test dataset: {len(tst_dataset)}")
 
-# 앙상블 예측 실행
-log.info(f"\n🔮 Running ensemble prediction with {K_FOLDS} models and TTA...")
-preds_list = predict_ensemble(ensemble_models, tst_dataset, device, img_size)
+# DataLoader 정의
+trn_loader = DataLoader(
+    trn_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    num_workers=num_workers,
+    pin_memory=True,
+    drop_last=False
+)
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=False,
+    num_workers=num_workers,
+    pin_memory=True
+)
+# test loader (TTA에서는 사용하지 않음)
+tst_loader = DataLoader(
+    tst_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=False,
+    num_workers=0,
+    pin_memory=True
+)
+
+"""## Train Model
+* 모델을 로드하고, 학습을 진행합니다.
+"""
+
+# load model
+model = timm.create_model(
+    model_name,
+    pretrained=True,
+    num_classes=17
+).to(device)
+
+log.info(f"Model: {model_name}")
+log.info(f"Number of parameters: {sum(p.numel() for p in model.parameters()):,}")
+
+# Loss function, optimizer, scheduler 정의
+loss_fn = LabelSmoothingLoss(classes=17, smoothing=label_smoothing)
+optimizer = Adam(model.parameters(), lr=LR, weight_decay=weight_decay)
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)
+scaler = GradScaler()
+
+# 최고 성능 모델 저장을 위한 변수
+best_val_f1 = 0.0
+best_model_path = "best_model.pth"
+
+log.info("Starting training...")
+for epoch in range(EPOCHS):
+    log.info(f"\n=== Epoch {epoch+1}/{EPOCHS} ===")
+    
+    # Training
+    train_ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device, scaler)
+    
+    # Validation (진짜 TTA 적용으로 test 데이터와 더 유사한 조건에서 평가)
+    val_ret = validate_one_epoch_tta(val_data, model, loss_fn, device, img_size, data_path)
+    
+    # Learning rate scheduler step
+    scheduler.step()
+    
+    # 결과 출력
+    current_lr = optimizer.param_groups[0]['lr']
+    
+    train_ret['epoch'] = epoch
+    val_ret['epoch'] = epoch
+    val_ret['lr'] = current_lr
+    
+    # 최고 성능 모델 저장
+    if val_ret['val_f1'] > best_val_f1:
+        best_val_f1 = val_ret['val_f1']
+        torch.save(model.state_dict(), best_model_path)
+        log.info(f"💾 Best model saved! F1: {best_val_f1:.4f}")
+    
+    log_message = ""
+    for k, v in train_ret.items():
+        log_message += f"train_{k}: {v:.4f} | "
+    for k, v in val_ret.items():
+        log_message += f"{k}: {v:.4f} | "
+    
+    log.info(log_message.rstrip(" | "))
+
+# 최고 성능 모델 로드
+log.info(f"\n🏆 Loading best model (F1: {best_val_f1:.4f})")
+model.load_state_dict(torch.load(best_model_path))
+
+"""## Inference & Save File
+* 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
+"""
+
+log.info("\nStarting inference with Test Time Augmentation...")
+
+# TTA로 예측 (tst_dataset 사용)
+preds_list = predict_with_tta(model, tst_dataset, device, img_size)
 
 # 결과 저장
-pred_df = pd.DataFrame(tst_dataset.df, columns=['ID', 'target'])
+sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
+pred_df = sample_submission_df.copy()
 pred_df['target'] = preds_list
 
-sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
-assert (sample_submission_df['ID'] == pred_df['ID']).all()
+# ID 순서 확인 (이미 같은 순서로 처리했으므로 문제없음)
+assert len(pred_df) == len(sample_submission_df)
 
 output_path = "./output"
 os.makedirs(output_path, exist_ok=True)
-pred_df.to_csv(f"{output_path}/pred_advanced_kfold_tta2.csv", index=False)
+pred_df.to_csv(f"{output_path}/pred_advanced_tta2_efnv2xl.csv", index=False)
 
-log.info(f"\n✅ Ensemble prediction completed and saved to {output_path}/pred_advanced_kfold_tta2.csv")
-log.info(f"📈 Final K-Fold CV Score: {mean_score:.4f} ± {std_score:.4f}")
+log.info(f"\n✅ Prediction completed and saved to {output_path}/pred_advanced_tta2_efnv2xl.csv")
+log.info(f"Best validation F1 score: {best_val_f1:.4f}")
 
 # 메모리 정리
-for model in ensemble_models:
-    del model
-torch.cuda.empty_cache()
-gc.collect()
+if os.path.exists(best_model_path):
+    os.remove(best_model_path)
 
-pred_df.head() 
+pred_df.head()
