@@ -1,0 +1,317 @@
+# -*- coding: utf-8 -*-
+"""
+models.py 모듈 테스트
+사용자 정의 모델 생성 및 관련 함수들을 테스트
+"""
+import os
+import sys
+import pytest
+import torch
+import tempfile
+from omegaconf import OmegaConf
+
+# 상위 디렉토리를 path에 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models import (
+    create_model,
+    setup_model_and_optimizer,
+    save_model,
+    load_model,
+    get_model_info
+)
+
+
+class TestModelCreation:
+    """모델 생성 함수 테스트"""
+    
+    def test_create_model_pretrained(self):
+        """사전 훈련된 모델 생성 테스트"""
+        model_name = 'resnet18'
+        num_classes = 10
+        
+        model = create_model(model_name, pretrained=True, num_classes=num_classes)
+        
+        # 모델 객체 확인
+        assert model is not None
+        assert hasattr(model, 'forward')
+        
+        # 입력/출력 차원 확인
+        dummy_input = torch.randn(1, 3, 224, 224)
+        with torch.no_grad():
+            output = model(dummy_input)
+        assert output.shape == (1, num_classes)
+    
+    def test_create_model_no_pretrained(self):
+        """사전 훈련 없는 모델 생성 테스트"""
+        model_name = 'resnet18'
+        num_classes = 5
+        
+        model = create_model(model_name, pretrained=False, num_classes=num_classes)
+        
+        # 모델 객체 확인
+        assert model is not None
+        
+        # 출력 차원 확인
+        dummy_input = torch.randn(1, 3, 224, 224)
+        with torch.no_grad():
+            output = model(dummy_input)
+        assert output.shape == (1, num_classes)
+    
+    def test_create_model_different_architectures(self):
+        """다양한 모델 아키텍처 테스트"""
+        models_to_test = [
+            ('resnet18', 17),
+            ('resnet34', 10),
+            ('efficientnet_b0', 5)
+        ]
+        
+        for model_name, num_classes in models_to_test:
+            model = create_model(model_name, pretrained=False, num_classes=num_classes)
+            
+            # 기본 검증
+            assert model is not None
+            
+            # 출력 차원 확인
+            dummy_input = torch.randn(1, 3, 224, 224)
+            with torch.no_grad():
+                output = model(dummy_input)
+            assert output.shape == (1, num_classes)
+
+
+class TestModelAndOptimizerSetup:
+    """모델과 옵티마이저 설정 함수 테스트"""
+    
+    def test_setup_model_and_optimizer_cpu(self):
+        """CPU에서 모델과 옵티마이저 설정 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001
+            }
+        })
+        device = torch.device('cpu')
+        
+        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        
+        # 모델 확인
+        assert model is not None
+        assert next(model.parameters()).device == device
+        
+        # 옵티마이저 확인
+        assert optimizer is not None
+        assert len(optimizer.param_groups) == 1
+        assert optimizer.param_groups[0]['lr'] == 0.001
+        
+        # 손실 함수 확인
+        assert loss_fn is not None
+        assert isinstance(loss_fn, torch.nn.CrossEntropyLoss)
+    
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    def test_setup_model_and_optimizer_cuda(self):
+        """CUDA에서 모델과 옵티마이저 설정 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 5
+            },
+            'training': {
+                'lr': 0.01
+            }
+        })
+        device = torch.device('cuda')
+        
+        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        
+        # 모델이 GPU에 있는지 확인
+        assert next(model.parameters()).device.type == 'cuda'
+        
+        # 옵티마이저 학습률 확인
+        assert optimizer.param_groups[0]['lr'] == 0.01
+
+
+class TestModelSaveLoad:
+    """모델 저장/로딩 함수 테스트"""
+    
+    def setup_method(self):
+        """테스트 준비"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.model_path = os.path.join(self.temp_dir, "test_model.pth")
+    
+    def test_save_and_load_model(self):
+        """모델 저장 및 로딩 테스트"""
+        # 원본 모델 생성
+        original_model = create_model('resnet18', pretrained=False, num_classes=10)
+        
+        # 모델 저장
+        save_model(original_model, self.model_path)
+        
+        # 파일이 생성되었는지 확인
+        assert os.path.exists(self.model_path)
+        
+        # 새로운 모델 생성 후 로딩
+        new_model = create_model('resnet18', pretrained=False, num_classes=10)
+        loaded_model = load_model(new_model, self.model_path)
+        
+        # 로딩된 모델 확인
+        assert loaded_model is not None
+        
+        # 파라미터가 동일한지 확인
+        original_params = list(original_model.parameters())
+        loaded_params = list(loaded_model.parameters())
+        
+        assert len(original_params) == len(loaded_params)
+        
+        for orig_param, loaded_param in zip(original_params, loaded_params):
+            assert torch.equal(orig_param, loaded_param)
+    
+    def test_save_model_creates_file(self):
+        """모델 저장 시 파일 생성 확인"""
+        model = create_model('resnet18', pretrained=False, num_classes=5)
+        
+        # 파일이 존재하지 않는지 확인
+        assert not os.path.exists(self.model_path)
+        
+        # 모델 저장
+        save_model(model, self.model_path)
+        
+        # 파일이 생성되었는지 확인
+        assert os.path.exists(self.model_path)
+        assert os.path.getsize(self.model_path) > 0
+
+
+class TestModelInfo:
+    """모델 정보 함수 테스트"""
+    
+    def test_get_model_info(self):
+        """모델 정보 조회 테스트"""
+        model = create_model('resnet18', pretrained=False, num_classes=17)
+        
+        info = get_model_info(model)
+        
+        # 반환값 구조 확인
+        assert isinstance(info, dict)
+        assert 'total_params' in info
+        assert 'trainable_params' in info
+        assert 'model_name' in info
+        
+        # 파라미터 수 확인
+        assert isinstance(info['total_params'], int)
+        assert isinstance(info['trainable_params'], int)
+        assert info['total_params'] > 0
+        assert info['trainable_params'] > 0
+        
+        # 기본적으로 모든 파라미터가 훈련 가능해야 함
+        assert info['total_params'] == info['trainable_params']
+        
+        # 모델 이름 확인
+        assert isinstance(info['model_name'], str)
+    
+    def test_get_model_info_frozen_params(self):
+        """일부 파라미터가 동결된 모델 정보 테스트"""
+        model = create_model('resnet18', pretrained=False, num_classes=10)
+        
+        # 첫 번째 레이어의 파라미터 동결
+        first_param = next(model.parameters())
+        first_param.requires_grad = False
+        
+        info = get_model_info(model)
+        
+        # 전체 파라미터 수와 훈련 가능한 파라미터 수가 달라야 함
+        assert info['total_params'] > info['trainable_params']
+    
+    def test_get_model_info_different_models(self):
+        """다양한 모델의 정보 비교 테스트"""
+        small_model = create_model('resnet18', pretrained=False, num_classes=10)
+        large_model = create_model('resnet34', pretrained=False, num_classes=10)
+        
+        small_info = get_model_info(small_model)
+        large_info = get_model_info(large_model)
+        
+        # ResNet34가 ResNet18보다 파라미터가 많아야 함
+        assert large_info['total_params'] > small_info['total_params']
+        assert large_info['trainable_params'] > small_info['trainable_params']
+
+
+class TestModelIntegration:
+    """모델 관련 통합 테스트"""
+    
+    def test_model_forward_pass(self):
+        """모델 순방향 전파 테스트"""
+        model = create_model('resnet18', pretrained=False, num_classes=17)
+        model.eval()
+        
+        # 배치 크기 다양하게 테스트
+        batch_sizes = [1, 4, 8]
+        
+        for batch_size in batch_sizes:
+            dummy_input = torch.randn(batch_size, 3, 224, 224)
+            
+            with torch.no_grad():
+                output = model(dummy_input)
+            
+            # 출력 크기 확인
+            assert output.shape == (batch_size, 17)
+            
+            # 출력이 유한한 값인지 확인
+            assert torch.isfinite(output).all()
+    
+    def test_model_training_mode(self):
+        """모델 훈련/평가 모드 전환 테스트"""
+        model = create_model('resnet18', pretrained=False, num_classes=10)
+        
+        # 기본적으로 훈련 모드
+        assert model.training is True
+        
+        # 평가 모드로 전환
+        model.eval()
+        assert model.training is False
+        
+        # 다시 훈련 모드로 전환
+        model.train()
+        assert model.training is True
+    
+    def test_model_gradient_computation(self):
+        """모델 그래디언트 계산 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 5
+            },
+            'training': {
+                'lr': 0.001
+            }
+        })
+        device = torch.device('cpu')
+        
+        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        
+        # 더미 데이터
+        dummy_input = torch.randn(2, 3, 224, 224)
+        dummy_target = torch.randint(0, 5, (2,))
+        
+        # 순방향 전파
+        output = model(dummy_input)
+        loss = loss_fn(output, dummy_target)
+        
+        # 역방향 전파
+        loss.backward()
+        
+        # 그래디언트가 계산되었는지 확인
+        has_gradients = False
+        for param in model.parameters():
+            if param.grad is not None:
+                has_gradients = True
+                break
+        
+        assert has_gradients, "모델 파라미터에 그래디언트가 계산되지 않았습니다"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__]) 

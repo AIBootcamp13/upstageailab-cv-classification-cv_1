@@ -1,283 +1,58 @@
+# -*- coding: utf-8 -*-
 """
-Test cases for main.py functionality
+main.py 모듈 통합 테스트
+전체 파이프라인과 모듈 간 통합을 테스트
 """
-import pytest
-import torch
-import numpy as np
-import pandas as pd
-import tempfile
 import os
-from unittest.mock import patch, MagicMock
-from PIL import Image
-from sklearn.model_selection import train_test_split, StratifiedKFold
-
-# Import functions and classes from main.py
 import sys
-import os
+import pytest
+import tempfile
+import pandas as pd
+from PIL import Image
+from omegaconf import OmegaConf
+from unittest.mock import patch, MagicMock
+
+# 상위 디렉토리를 path에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from main import (
-    ImageDataset, 
-    IndexedImageDataset, 
-    EarlyStopping, 
-    train_one_epoch, 
-    validate_one_epoch
-)
+# 분리된 모듈들 import
+from main import main
+from data import prepare_data_loaders
+from training import train_single_model, train_kfold_models
+from inference import run_inference
+from utils import set_seed, get_device
+from models import setup_model_and_optimizer
 
 
-class TestImageDataset:
-    """Test ImageDataset class"""
+class TestMainPipeline:
+    """메인 파이프라인 통합 테스트"""
     
     def setup_method(self):
-        # Create temporary test data
-        self.temp_dir = tempfile.mkdtemp()
-        self.csv_path = os.path.join(self.temp_dir, "test.csv")
-        self.img_dir = os.path.join(self.temp_dir, "images")
-        os.makedirs(self.img_dir)
-        
-        # Create test CSV
-        test_data = {
-            'ID': ['img1.jpg', 'img2.jpg', 'img3.jpg'],
-            'target': [0, 1, 2]
-        }
-        df = pd.DataFrame(test_data)
-        df.to_csv(self.csv_path, index=False)
-        
-        # Create dummy images
-        for img_name in test_data['ID']:
-            img = Image.new('RGB', (32, 32), color='red')
-            img.save(os.path.join(self.img_dir, img_name))
-    
-    def test_image_dataset_csv_path(self):
-        """Test ImageDataset with CSV path"""
-        dataset = ImageDataset(self.csv_path, self.img_dir)
-        assert len(dataset) == 3
-        
-        # Test __getitem__
-        img, target = dataset[0]
-        assert isinstance(img, np.ndarray)
-        assert target == 0
-    
-    def test_image_dataset_dataframe(self):
-        """Test ImageDataset with DataFrame"""
-        df = pd.read_csv(self.csv_path)
-        dataset = ImageDataset(df, self.img_dir)
-        assert len(dataset) == 3
-        
-        img, target = dataset[0]
-        assert isinstance(img, np.ndarray)
-        assert target == 0
-
-
-class TestIndexedImageDataset:
-    """Test IndexedImageDataset class"""
-    
-    def setup_method(self):
-        # Create test DataFrame
-        self.df = pd.DataFrame({
-            'ID': ['img1.jpg', 'img2.jpg', 'img3.jpg'],
-            'target': [0, 1, 2]
-        })
-        
-        # Create temporary image directory
-        self.temp_dir = tempfile.mkdtemp()
-        self.img_dir = os.path.join(self.temp_dir, "images")
-        os.makedirs(self.img_dir)
-        
-        # Create dummy images
-        for img_name in self.df['ID']:
-            img = Image.new('RGB', (32, 32), color='red')
-            img.save(os.path.join(self.img_dir, img_name))
-    
-    def test_indexed_image_dataset(self):
-        """Test IndexedImageDataset"""
-        dataset = IndexedImageDataset(self.df, self.img_dir)
-        assert len(dataset) == 3
-        
-        img, target = dataset[0]
-        assert isinstance(img, np.ndarray)
-        assert target == 0
-
-
-class TestEarlyStopping:
-    """Test EarlyStopping class"""
-    
-    def test_early_stopping_min_mode(self):
-        """Test early stopping with min mode (for loss)"""
-        early_stopping = EarlyStopping(patience=2, min_delta=0.01, monitor='val_loss', mode='min')
-        
-        # Test improving loss
-        assert not early_stopping({'val_loss': 1.0})
-        assert not early_stopping({'val_loss': 0.9})
-        assert not early_stopping({'val_loss': 0.8})
-        
-        # Test non-improving loss
-        assert not early_stopping({'val_loss': 0.82})  # within min_delta
-        assert early_stopping({'val_loss': 0.83})  # should stop after patience
-    
-    def test_early_stopping_max_mode(self):
-        """Test early stopping with max mode (for accuracy)"""
-        early_stopping = EarlyStopping(patience=2, min_delta=0.01, monitor='val_acc', mode='max')
-        
-        # Test improving accuracy
-        assert not early_stopping({'val_acc': 0.8})
-        assert not early_stopping({'val_acc': 0.9})
-        assert not early_stopping({'val_acc': 0.95})
-        
-        # Test non-improving accuracy
-        assert not early_stopping({'val_acc': 0.94})  # within min_delta
-        assert early_stopping({'val_acc': 0.93})  # should stop after patience
-
-
-class TestTrainingFunctions:
-    """Test training and validation functions"""
-    
-    def setup_method(self):
-        # Create dummy model and data
-        self.device = torch.device('cpu')
-        self.model = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(32*32*3, 10),
-            torch.nn.LogSoftmax(dim=1)
-        )
-        
-        # Create dummy data
-        self.images = torch.randn(10, 3, 32, 32)
-        self.targets = torch.randint(0, 10, (10,))
-        self.dataset = torch.utils.data.TensorDataset(self.images, self.targets)
-        self.loader = torch.utils.data.DataLoader(self.dataset, batch_size=2)
-        
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        self.loss_fn = torch.nn.NLLLoss()
-    
-    def test_train_one_epoch(self):
-        """Test train_one_epoch function"""
-        result = train_one_epoch(self.loader, self.model, self.optimizer, self.loss_fn, self.device)
-        
-        # Check return structure
-        assert 'train_loss' in result
-        assert 'train_acc' in result
-        assert 'train_f1' in result
-        
-        # Check value types
-        assert isinstance(result['train_loss'], float)
-        assert isinstance(result['train_acc'], float)
-        assert isinstance(result['train_f1'], float)
-        
-        # Check reasonable ranges
-        assert result['train_loss'] >= 0
-        assert 0 <= result['train_acc'] <= 1
-        assert 0 <= result['train_f1'] <= 1
-    
-    def test_validate_one_epoch(self):
-        """Test validate_one_epoch function"""
-        result = validate_one_epoch(self.loader, self.model, self.loss_fn, self.device)
-        
-        # Check return structure
-        assert 'val_loss' in result
-        assert 'val_acc' in result
-        assert 'val_f1' in result
-        
-        # Check value types
-        assert isinstance(result['val_loss'], float)
-        assert isinstance(result['val_acc'], float)
-        assert isinstance(result['val_f1'], float)
-        
-        # Check reasonable ranges
-        assert result['val_loss'] >= 0
-        assert 0 <= result['val_acc'] <= 1
-        assert 0 <= result['val_f1'] <= 1
-
-
-class TestValidationStrategies:
-    """Test validation strategies"""
-    
-    def setup_method(self):
-        # Create sample data
-        np.random.seed(42)
-        self.n_samples = 100
-        self.n_classes = 5
-        
-        # Create balanced dataset
-        self.df = pd.DataFrame({
-            'ID': [f'img_{i}.jpg' for i in range(self.n_samples)],
-            'target': np.random.randint(0, self.n_classes, self.n_samples)
-        })
-    
-    def test_holdout_split(self):
-        """Test holdout data split"""
-        train_ratio = 0.8
-        train_df, val_df = train_test_split(
-            self.df, 
-            test_size=1-train_ratio, 
-            stratify=self.df['target'], 
-            random_state=42
-        )
-        
-        # Check split ratios
-        assert len(train_df) == int(self.n_samples * train_ratio)
-        assert len(val_df) == self.n_samples - int(self.n_samples * train_ratio)
-        
-        # Check no overlap
-        train_ids = set(train_df['ID'].tolist())
-        val_ids = set(val_df['ID'].tolist())
-        assert len(train_ids.intersection(val_ids)) == 0
-    
-    def test_kfold_split(self):
-        """Test K-Fold data split"""
-        n_splits = 5
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-        folds = list(skf.split(self.df, self.df['target']))
-        
-        # Check number of folds
-        assert len(folds) == n_splits
-        
-        # Check fold sizes
-        for train_idx, val_idx in folds:
-            # Check no overlap
-            assert len(set(train_idx).intersection(set(val_idx))) == 0
-            
-            # Check sizes
-            assert len(train_idx) + len(val_idx) == self.n_samples
-            assert len(val_idx) == self.n_samples // n_splits or len(val_idx) == self.n_samples // n_splits + 1
-        
-        # Check all samples are used
-        all_val_indices = set()
-        for train_idx, val_idx in folds:
-            all_val_indices.update(val_idx)
-        
-        assert len(all_val_indices) == self.n_samples
-
-
-class TestPipelineComponents:
-    """Test pipeline components"""
-    
-    def setup_method(self):
-        # Create minimal test data
+        """테스트 데이터 준비"""
         self.temp_dir = tempfile.mkdtemp()
         self.data_dir = os.path.join(self.temp_dir, "data")
         os.makedirs(os.path.join(self.data_dir, "train"))
         os.makedirs(os.path.join(self.data_dir, "test"))
         
-        # Create train data
-        n_train = 20
+        # 훈련 데이터 생성 (30개 샘플, 3개 클래스)
+        n_train = 30
         train_data = {
             'ID': [f'train_{i}.jpg' for i in range(n_train)],
-            'target': np.random.randint(0, 3, n_train)
+            'target': [i % 3 for i in range(n_train)]
         }
         train_df = pd.DataFrame(train_data)
         train_df.to_csv(os.path.join(self.data_dir, "train.csv"), index=False)
         
-        # Create test data
-        n_test = 10
+        # 테스트 데이터 생성
+        n_test = 12
         test_data = {
             'ID': [f'test_{i}.jpg' for i in range(n_test)],
-            'target': [0] * n_test  # dummy targets
+            'target': [0] * n_test
         }
         test_df = pd.DataFrame(test_data)
         test_df.to_csv(os.path.join(self.data_dir, "sample_submission.csv"), index=False)
         
-        # Create dummy images
+        # 더미 이미지 생성
         for img_name in train_data['ID']:
             img = Image.new('RGB', (32, 32), color='red')
             img.save(os.path.join(self.data_dir, "train", img_name))
@@ -285,134 +60,435 @@ class TestPipelineComponents:
         for img_name in test_data['ID']:
             img = Image.new('RGB', (32, 32), color='blue')
             img.save(os.path.join(self.data_dir, "test", img_name))
-    
-    def test_data_loading(self):
-        """Test data loading"""
-        # Test train data loading
-        train_df = pd.read_csv(f"{self.data_dir}/train.csv")
-        assert len(train_df) == 20
-        assert 'ID' in train_df.columns
-        assert 'target' in train_df.columns
         
-        # Test test data loading
-        test_df = pd.read_csv(f"{self.data_dir}/sample_submission.csv")
-        assert len(test_df) == 10
-        assert 'ID' in test_df.columns
-        assert 'target' in test_df.columns
+        # 출력 디렉토리 생성
+        self.output_dir = os.path.join(self.temp_dir, "output")
+        os.makedirs(self.output_dir)
     
-    def test_holdout_validation_setup(self):
-        """Test holdout validation setup"""
-        from omegaconf import OmegaConf
-        
-        # Create test config
+    def create_test_config(self, validation_strategy='holdout'):
+        """테스트용 설정 생성"""
         cfg = OmegaConf.create({
+            'data': {
+                'data_path': self.data_dir,
+                'img_size': 32,
+                'num_workers': 0
+            },
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 3
+            },
+            'training': {
+                'lr': 0.01,
+                'epochs': 1,
+                'batch_size': 4,
+                'seed': 42
+            },
+            'validation': {
+                'strategy': validation_strategy,
+                'holdout': {
+                    'train_ratio': 0.8,
+                    'stratify': True
+                },
+                'kfold': {
+                    'n_splits': 2,
+                    'stratify': True
+                },
+                'early_stopping': {
+                    'enabled': False
+                }
+            },
+            'device': 'cpu',
+            'output': {
+                'dir': self.output_dir,
+                'filename': 'test_predictions.csv'
+            },
+            'wandb': {
+                'enabled': False
+            }
+        })
+        return cfg
+    
+    @patch('main.setup_wandb')
+    @patch('main.finish_wandb')
+    @patch('main.log')
+    def test_main_pipeline_holdout(self, mock_log, mock_finish_wandb, mock_setup_wandb):
+        """Holdout 검증 메인 파이프라인 테스트"""
+        # 설정 생성
+        cfg = self.create_test_config('holdout')
+        
+        # 설정 파일 생성
+        config_dir = os.path.join(self.temp_dir, "config")
+        os.makedirs(config_dir)
+        config_path = os.path.join(config_dir, "test_config.yaml")
+        
+        with open(config_path, 'w') as f:
+            f.write(f"""
+data:
+  data_path: {self.data_dir}
+  img_size: 32
+  num_workers: 0
+model:
+  name: resnet18
+  pretrained: false
+  num_classes: 3
+training:
+  lr: 0.01
+  epochs: 1
+  batch_size: 4
+  seed: 42
+validation:
+  strategy: holdout
+  holdout:
+    train_ratio: 0.8
+    stratify: true
+  early_stopping:
+    enabled: false
+device: cpu
+output:
+  dir: {self.output_dir}
+  filename: test_predictions.csv
+wandb:
+  enabled: false
+""")
+        
+        # 현재 디렉토리 변경
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(self.temp_dir)
+            
+            # Hydra를 사용한 메인 함수 실행
+            with patch('hydra.main') as mock_hydra:
+                # Mock 설정
+                mock_hydra.return_value = lambda func: func
+                
+                # 직접 함수 호출로 테스트
+                with patch('main.prepare_data_loaders') as mock_prepare_data:
+                    with patch('main.train_single_model') as mock_train:
+                        with patch('main.run_inference') as mock_inference:
+                            # Mock 반환값 설정
+                            mock_prepare_data.return_value = (
+                                MagicMock(), MagicMock(), MagicMock(), None
+                            )
+                            mock_train.return_value = MagicMock()
+                            mock_inference.return_value = pd.DataFrame({
+                                'ID': ['test_0.jpg', 'test_1.jpg'],
+                                'target': [0, 1]
+                            })
+                            
+                            # 메인 함수 실행
+                            main(cfg)
+                            
+                            # 각 단계가 호출되었는지 확인
+                            mock_prepare_data.assert_called_once()
+                            mock_train.assert_called_once()
+                            mock_inference.assert_called_once()
+                            
+                            # wandb 함수들이 호출되었는지 확인
+                            mock_setup_wandb.assert_called_once()
+                            mock_finish_wandb.assert_called_once()
+        finally:
+            os.chdir(original_cwd)
+    
+    @patch('main.setup_wandb')
+    @patch('main.finish_wandb')
+    @patch('main.log')
+    def test_main_pipeline_kfold(self, mock_log, mock_finish_wandb, mock_setup_wandb):
+        """K-Fold 검증 메인 파이프라인 테스트"""
+        cfg = self.create_test_config('kfold')
+        
+        with patch('main.prepare_data_loaders') as mock_prepare_data:
+            with patch('main.train_kfold_models') as mock_train:
+                with patch('main.run_inference') as mock_inference:
+                    # Mock 반환값 설정
+                    mock_prepare_data.return_value = (
+                        None, None, MagicMock(), MagicMock()  # kfold_data 있음
+                    )
+                    mock_train.return_value = [MagicMock(), MagicMock()]
+                    mock_inference.return_value = pd.DataFrame({
+                        'ID': ['test_0.jpg', 'test_1.jpg'],
+                        'target': [0, 1]
+                    })
+                    
+                    # 메인 함수 실행
+                    main(cfg)
+                    
+                    # K-Fold 관련 함수들이 호출되었는지 확인
+                    mock_prepare_data.assert_called_once()
+                    mock_train.assert_called_once()
+                    mock_inference.assert_called_once()
+                    
+                    # K-Fold 추론인지 확인
+                    call_args = mock_inference.call_args
+                    assert call_args[1]['is_kfold'] is True
+    
+    @patch('main.setup_wandb')
+    @patch('main.finish_wandb')
+    @patch('main.log')
+    def test_main_pipeline_no_validation(self, mock_log, mock_finish_wandb, mock_setup_wandb):
+        """검증 없는 메인 파이프라인 테스트"""
+        cfg = self.create_test_config('none')
+        
+        with patch('main.prepare_data_loaders') as mock_prepare_data:
+            with patch('main.train_single_model') as mock_train:
+                with patch('main.run_inference') as mock_inference:
+                    # Mock 반환값 설정
+                    mock_prepare_data.return_value = (
+                        MagicMock(), None, MagicMock(), None  # val_loader가 None
+                    )
+                    mock_train.return_value = MagicMock()
+                    mock_inference.return_value = pd.DataFrame({
+                        'ID': ['test_0.jpg'],
+                        'target': [0]
+                    })
+                    
+                    # 메인 함수 실행
+                    main(cfg)
+                    
+                    # 검증 없이 학습되었는지 확인
+                    train_call_args = mock_train.call_args
+                    assert train_call_args[0][2] is None  # val_loader가 None
+
+
+class TestModuleIntegration:
+    """모듈 간 통합 테스트"""
+    
+    def setup_method(self):
+        """테스트 데이터 준비"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.data_dir = os.path.join(self.temp_dir, "data")
+        os.makedirs(os.path.join(self.data_dir, "train"))
+        os.makedirs(os.path.join(self.data_dir, "test"))
+        
+        # 작은 데이터셋 생성
+        n_train = 20
+        train_data = {
+            'ID': [f'train_{i}.jpg' for i in range(n_train)],
+            'target': [i % 3 for i in range(n_train)]
+        }
+        train_df = pd.DataFrame(train_data)
+        train_df.to_csv(os.path.join(self.data_dir, "train.csv"), index=False)
+        
+        n_test = 8
+        test_data = {
+            'ID': [f'test_{i}.jpg' for i in range(n_test)],
+            'target': [0] * n_test
+        }
+        test_df = pd.DataFrame(test_data)
+        test_df.to_csv(os.path.join(self.data_dir, "sample_submission.csv"), index=False)
+        
+        # 더미 이미지 생성
+        for img_name in train_data['ID']:
+            img = Image.new('RGB', (32, 32), color='red')
+            img.save(os.path.join(self.data_dir, "train", img_name))
+        
+        for img_name in test_data['ID']:
+            img = Image.new('RGB', (32, 32), color='blue')
+            img.save(os.path.join(self.data_dir, "test", img_name))
+        
+        # 설정
+        self.cfg = OmegaConf.create({
+            'data': {
+                'data_path': self.data_dir,
+                'img_size': 32,
+                'num_workers': 0
+            },
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 3
+            },
+            'training': {
+                'lr': 0.01,
+                'epochs': 1,
+                'batch_size': 4,
+                'seed': 42
+            },
             'validation': {
                 'strategy': 'holdout',
                 'holdout': {
                     'train_ratio': 0.8,
                     'stratify': True
+                },
+                'early_stopping': {
+                    'enabled': False
                 }
             },
-            'training': {
-                'seed': 42
+            'device': 'cpu',
+            'output': {
+                'dir': self.temp_dir,
+                'filename': 'integration_test.csv'
+            },
+            'wandb': {
+                'enabled': False
             }
         })
-        
-        # Load and split data
-        full_train_df = pd.read_csv(f"{self.data_dir}/train.csv")
-        
-        if cfg.validation.holdout.stratify:
-            train_df, val_df = train_test_split(
-                full_train_df, 
-                test_size=1-cfg.validation.holdout.train_ratio, 
-                stratify=full_train_df['target'], 
-                random_state=cfg.training.seed
-            )
-        else:
-            train_df, val_df = train_test_split(
-                full_train_df, 
-                test_size=1-cfg.validation.holdout.train_ratio, 
-                random_state=cfg.training.seed
-            )
-        
-        # Test split results
-        assert len(train_df) + len(val_df) == len(full_train_df)
-        assert len(train_df) == int(len(full_train_df) * cfg.validation.holdout.train_ratio)
-        
-        # Test no overlap
-        train_ids = set(train_df['ID'].tolist())
-        val_ids = set(val_df['ID'].tolist())
-        assert len(train_ids.intersection(val_ids)) == 0
     
-    def test_kfold_validation_setup(self):
-        """Test K-Fold validation setup"""
-        from omegaconf import OmegaConf
+    def test_data_to_training_integration(self):
+        """데이터 준비 → 학습 모듈 통합 테스트"""
+        # 시드 설정
+        set_seed(self.cfg.training.seed)
         
-        # Create test config
+        # 데이터 준비
+        train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
+            self.cfg, self.cfg.training.seed
+        )
+        
+        # 데이터 로더 검증
+        assert train_loader is not None
+        assert val_loader is not None
+        assert test_loader is not None
+        assert kfold_data is None  # holdout 모드
+        
+        # 디바이스 설정
+        device = get_device(self.cfg)
+        
+        # 모델 및 옵티마이저 설정
+        model, optimizer, loss_fn = setup_model_and_optimizer(self.cfg, device)
+        
+        # 학습 실행
+        trained_model = train_single_model(self.cfg, train_loader, val_loader, device)
+        
+        # 학습된 모델 검증
+        assert trained_model is not None
+        assert hasattr(trained_model, 'forward')
+    
+    def test_training_to_inference_integration(self):
+        """학습 → 추론 모듈 통합 테스트"""
+        # 시드 설정
+        set_seed(self.cfg.training.seed)
+        
+        # 데이터 준비
+        train_loader, val_loader, test_loader, _ = prepare_data_loaders(
+            self.cfg, self.cfg.training.seed
+        )
+        
+        # 디바이스 설정
+        device = get_device(self.cfg)
+        
+        # 학습
+        trained_model = train_single_model(self.cfg, train_loader, val_loader, device)
+        
+        # 추론 실행
+        result_df = run_inference(
+            trained_model, test_loader, test_loader.dataset, 
+            self.cfg, device, is_kfold=False
+        )
+        
+        # 추론 결과 검증
+        assert isinstance(result_df, pd.DataFrame)
+        assert len(result_df) == 8  # 테스트 데이터 수
+        assert 'ID' in result_df.columns
+        assert 'target' in result_df.columns
+        
+        # 예측값이 유효한 클래스인지 확인
+        for pred in result_df['target']:
+            assert 0 <= pred < 3
+    
+    def test_full_pipeline_integration(self):
+        """전체 파이프라인 통합 테스트"""
+        # 시드 설정
+        set_seed(self.cfg.training.seed)
+        
+        # 1. 데이터 준비
+        train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
+            self.cfg, self.cfg.training.seed
+        )
+        
+        # 2. 디바이스 설정
+        device = get_device(self.cfg)
+        
+        # 3. 학습
+        trained_model = train_single_model(self.cfg, train_loader, val_loader, device)
+        
+        # 4. 추론
+        result_df = run_inference(
+            trained_model, test_loader, test_loader.dataset, 
+            self.cfg, device, is_kfold=False
+        )
+        
+        # 5. 결과 파일 확인
+        output_path = os.path.join(self.temp_dir, 'integration_test.csv')
+        assert os.path.exists(output_path)
+        
+        # 6. 파일 내용 검증
+        saved_df = pd.read_csv(output_path)
+        pd.testing.assert_frame_equal(result_df, saved_df)
+    
+    def test_kfold_pipeline_integration(self):
+        """K-Fold 파이프라인 통합 테스트"""
+        # K-Fold 설정으로 변경
+        self.cfg.validation.strategy = 'kfold'
+        self.cfg.validation.kfold.n_splits = 2
+        
+        # 시드 설정
+        set_seed(self.cfg.training.seed)
+        
+        # 1. 데이터 준비
+        train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
+            self.cfg, self.cfg.training.seed
+        )
+        
+        # K-Fold 데이터 검증
+        assert train_loader is None
+        assert val_loader is None
+        assert test_loader is not None
+        assert kfold_data is not None
+        
+        # 2. 디바이스 설정
+        device = get_device(self.cfg)
+        
+        # 3. K-Fold 학습
+        trained_models = train_kfold_models(self.cfg, kfold_data, device)
+        
+        # 4. 앙상블 추론
+        result_df = run_inference(
+            trained_models, test_loader, test_loader.dataset, 
+            self.cfg, device, is_kfold=True
+        )
+        
+        # 5. 결과 검증
+        assert isinstance(result_df, pd.DataFrame)
+        assert len(result_df) == 8
+        
+        # 6. 결과 파일 확인
+        output_path = os.path.join(self.temp_dir, 'integration_test.csv')
+        assert os.path.exists(output_path)
+
+
+class TestErrorHandling:
+    """오류 처리 테스트"""
+    
+    def test_invalid_config_handling(self):
+        """잘못된 설정 처리 테스트"""
+        # 잘못된 모델 이름
+        with pytest.raises(Exception):
+            cfg = OmegaConf.create({
+                'model': {'name': 'invalid_model'},
+                'training': {'lr': 0.01},
+                'device': 'cpu'
+            })
+            device = get_device(cfg)
+            setup_model_and_optimizer(cfg, device)
+    
+    def test_missing_data_handling(self):
+        """데이터 누락 처리 테스트"""
+        temp_dir = tempfile.mkdtemp()
+        
+        # 데이터 파일이 없는 경우
         cfg = OmegaConf.create({
-            'validation': {
-                'strategy': 'kfold',
-                'kfold': {
-                    'n_splits': 3,
-                    'stratify': True
-                }
+            'data': {
+                'data_path': temp_dir,
+                'img_size': 32,
+                'num_workers': 0
             },
-            'training': {
-                'seed': 42
-            }
+            'training': {'batch_size': 4, 'seed': 42},
+            'validation': {'strategy': 'holdout'}
         })
         
-        # Load data
-        full_train_df = pd.read_csv(f"{self.data_dir}/train.csv")
-        
-        # Setup K-Fold
-        if cfg.validation.kfold.stratify:
-            skf = StratifiedKFold(n_splits=cfg.validation.kfold.n_splits, shuffle=True, random_state=cfg.training.seed)
-            folds = list(skf.split(full_train_df, full_train_df['target']))
-        else:
-            from sklearn.model_selection import KFold
-            kf = KFold(n_splits=cfg.validation.kfold.n_splits, shuffle=True, random_state=cfg.training.seed)
-            folds = list(kf.split(full_train_df))
-        
-        # Test fold results
-        assert len(folds) == cfg.validation.kfold.n_splits
-        
-        # Test each fold
-        for fold_idx, (train_idx, val_idx) in enumerate(folds):
-            train_df = full_train_df.iloc[train_idx]
-            val_df = full_train_df.iloc[val_idx]
-            
-            # Check split integrity
-            assert len(train_df) + len(val_df) == len(full_train_df)
-            assert len(set(train_df.index).intersection(set(val_df.index))) == 0
-    
-    def test_predictions_format(self):
-        """Test predictions format"""
-        # Create dummy predictions
-        test_df = pd.read_csv(f"{self.data_dir}/sample_submission.csv")
-        
-        # Simulate predictions
-        pred_df = test_df.copy()
-        pred_df['target'] = np.random.randint(0, 3, len(pred_df))
-        
-        # Test format
-        assert 'ID' in pred_df.columns
-        assert 'target' in pred_df.columns
-        assert len(pred_df) == 10
-        
-        # Test value ranges
-        assert all(0 <= target <= 2 for target in pred_df['target'])
-        
-        # Test saving and loading
-        pred_path = f"{self.temp_dir}/test_predictions.csv"
-        pred_df.to_csv(pred_path, index=False)
-        
-        # Verify file exists and format
-        assert os.path.exists(pred_path)
-        loaded_pred = pd.read_csv(pred_path)
-        assert list(loaded_pred.columns) == ['ID', 'target']
-        assert len(loaded_pred) == 10
+        with pytest.raises(FileNotFoundError):
+            prepare_data_loaders(cfg, 42)
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"]) 
+    pytest.main([__file__]) 
