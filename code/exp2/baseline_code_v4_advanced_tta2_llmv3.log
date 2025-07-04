@@ -73,3 +73,6 @@
 🏆 Loading best model (F1: 0.0070)
 [25-07-04 08:17:12] [INFO] 
 Starting inference with Test Time Augmentation...
+[25-07-04 10:08:56] [INFO] 
+✅ Prediction completed and saved to ./output/pred_advanced_tta2.csv
+[25-07-04 10:08:56] [INFO] Best validation F1 score: 0.0070
