@@ -106,22 +106,26 @@ uv run main.py validation.strategy=none
 
 구현된 기능들이 올바르게 동작하는지 pytest로 확인할 수 있습니다.
 
-### 전체 테스트 실행
+### 간단한 테스트 실행
 ```bash
-# 모든 테스트 실행
-uv run python run_tests.py
+# 모든 테스트 자동 실행 (권장)
+uv run pytest
 
-# 또는 개별 테스트 파일 실행
+# 상세한 출력으로 실행
+uv run pytest -v
+
+# 특정 테스트 파일만 실행
 uv run pytest tests/test_main.py -v
 uv run pytest tests/test_features.py -v
-uv run pytest tests/test_main.py tests/test_features.py -v
 ```
 
-### 기능별 테스트
+### 기능별 개별 테스트
 ```bash
-# 기능별 개별 테스트
+# 기능별 개별 테스트 (터미널 출력 포함)
 uv run python tests/test_features.py
 ```
+
+
 
 ### 테스트 커버리지
 - ✅ **데이터 로딩**: ImageDataset, IndexedImageDataset 클래스
