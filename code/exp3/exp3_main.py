@@ -44,6 +44,8 @@ import os
 import time
 import random
 
+import hydra
+from omegaconf import DictConfig, OmegaConf
 import timm
 import torch
 import albumentations as A
@@ -61,20 +63,8 @@ from sklearn.metrics import accuracy_score, f1_score
 # 로그 유틸리티 import
 import log_util as log
 
-# 시드를 고정합니다.
-SEED = 42
-os.environ['PYTHONHASHSEED'] = str(SEED)
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
-torch.backends.cudnn.benchmark = True
-
 # 현재 스크립트 위치를 작업 디렉토리로 설정
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-log.info("환경 설정 완료")
 
 # 데이터셋 클래스를 정의합니다.
 class ImageDataset(Dataset):
@@ -130,134 +120,154 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device):
 
     return ret
 
-"""## 3. Hyper-parameters
-* 학습 및 추론에 필요한 하이퍼파라미터들을 정의합니다.
-"""
+@hydra.main(version_base=None, config_path="config", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """## 3. Hyper-parameters
+    * 학습 및 추론에 필요한 하이퍼파라미터들을 정의합니다.
+    """
+    
+    # 설정 출력
+    log.info(f"설정 로드 완료:")
+    log.info(f"\n{OmegaConf.to_yaml(cfg)}")
+    
+    # 시드를 고정합니다.
+    SEED = cfg.training.seed
+    os.environ['PYTHONHASHSEED'] = str(SEED)
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+    torch.backends.cudnn.benchmark = True
 
-# device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-log.info(f"사용 장치: {device}")
+    log.info("환경 설정 완료")
 
-# data config
-data_path = '../../input/data'
+    # device
+    device = torch.device('cuda' if torch.cuda.is_available() and cfg.device == 'cuda' else 'cpu')
+    log.info(f"사용 장치: {device}")
 
-# model config
-model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
+    # data config
+    data_path = cfg.data.data_path
 
-# training config
-img_size = 32
-LR = 1e-3
-EPOCHS = 1
-BATCH_SIZE = 32
-num_workers = 0
+    # model config
+    model_name = cfg.model.name
 
-log.info(f"하이퍼파라미터 설정 - 모델: {model_name}, 이미지 크기: {img_size}, 학습률: {LR}, 에포크: {EPOCHS}, 배치 크기: {BATCH_SIZE}")
+    # training config
+    img_size = cfg.data.img_size
+    LR = cfg.training.lr
+    EPOCHS = cfg.training.epochs
+    BATCH_SIZE = cfg.training.batch_size
+    num_workers = cfg.data.num_workers
 
-"""## 4. Load Data
-* 학습, 테스트 데이터셋과 로더를 정의합니다.
-"""
+    log.info(f"하이퍼파라미터 설정 - 모델: {model_name}, 이미지 크기: {img_size}, 학습률: {LR}, 에포크: {EPOCHS}, 배치 크기: {BATCH_SIZE}")
 
-# augmentation을 위한 transform 코드
-trn_transform = A.Compose([
-    # 이미지 크기 조정
-    A.Resize(height=img_size, width=img_size),
-    # images normalization
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    # numpy 이미지나 PIL 이미지를 PyTorch 텐서로 변환
-    ToTensorV2(),
-])
+    """## 4. Load Data
+    * 학습, 테스트 데이터셋과 로더를 정의합니다.
+    """
 
-# test image 변환을 위한 transform 코드
-tst_transform = A.Compose([
-    A.Resize(height=img_size, width=img_size),
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ToTensorV2(),
-])
+    # augmentation을 위한 transform 코드
+    trn_transform = A.Compose([
+        # 이미지 크기 조정
+        A.Resize(height=img_size, width=img_size),
+        # images normalization
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # numpy 이미지나 PIL 이미지를 PyTorch 텐서로 변환
+        ToTensorV2(),
+    ])
 
-# Dataset 정의
-trn_dataset = ImageDataset(
-    f"{data_path}/train.csv",
-    f"{data_path}/train/",
-    transform=trn_transform
-)
-tst_dataset = ImageDataset(
-    f"{data_path}/sample_submission.csv",
-    f"{data_path}/test/",
-    transform=tst_transform
-)
-log.info(f"데이터셋 로드 완료 - 훈련 데이터: {len(trn_dataset)}개, 테스트 데이터: {len(tst_dataset)}개")
+    # test image 변환을 위한 transform 코드
+    tst_transform = A.Compose([
+        A.Resize(height=img_size, width=img_size),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ToTensorV2(),
+    ])
 
-# DataLoader 정의
-trn_loader = DataLoader(
-    trn_dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=True,
-    num_workers=num_workers,
-    pin_memory=True,
-    drop_last=False
-)
-tst_loader = DataLoader(
-    tst_dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=False,
-    num_workers=0,
-    pin_memory=True
-)
+    # Dataset 정의
+    trn_dataset = ImageDataset(
+        f"{data_path}/train.csv",
+        f"{data_path}/train/",
+        transform=trn_transform
+    )
+    tst_dataset = ImageDataset(
+        f"{data_path}/sample_submission.csv",
+        f"{data_path}/test/",
+        transform=tst_transform
+    )
+    log.info(f"데이터셋 로드 완료 - 훈련 데이터: {len(trn_dataset)}개, 테스트 데이터: {len(tst_dataset)}개")
 
-"""## 5. Train Model
-* 모델을 로드하고, 학습을 진행합니다.
-"""
+    # DataLoader 정의
+    trn_loader = DataLoader(
+        trn_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False
+    )
+    tst_loader = DataLoader(
+        tst_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True
+    )
 
-# load model
-model = timm.create_model(
-    model_name,
-    pretrained=True,
-    num_classes=17
-).to(device)
-loss_fn = nn.CrossEntropyLoss()
-optimizer = Adam(model.parameters(), lr=LR)
+    """## 5. Train Model
+    * 모델을 로드하고, 학습을 진행합니다.
+    """
 
-log.info(f"모델 로드 완료 - {model_name}, 클래스 수: 17개")
-log.info("학습 시작")
+    # load model
+    model = timm.create_model(
+        model_name,
+        pretrained=cfg.model.pretrained,
+        num_classes=cfg.model.num_classes
+    ).to(device)
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr=LR)
 
-for epoch in range(EPOCHS):
-    ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
-    ret['epoch'] = epoch
+    log.info(f"모델 로드 완료 - {model_name}, 클래스 수: {cfg.model.num_classes}개")
+    log.info("학습 시작")
 
-    log_message = f"Epoch {epoch+1}/{EPOCHS} 완료 - "
-    log_message += f"train_loss: {ret['train_loss']:.4f}, "
-    log_message += f"train_acc: {ret['train_acc']:.4f}, "
-    log_message += f"train_f1: {ret['train_f1']:.4f}"
-    log.info(log_message)
+    for epoch in range(EPOCHS):
+        ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
+        ret['epoch'] = epoch
 
-"""# 6. Inference & Save File
-* 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
-"""
+        log_message = f"Epoch {epoch+1}/{EPOCHS} 완료 - "
+        log_message += f"train_loss: {ret['train_loss']:.4f}, "
+        log_message += f"train_acc: {ret['train_acc']:.4f}, "
+        log_message += f"train_f1: {ret['train_f1']:.4f}"
+        log.info(log_message)
 
-log.info("추론 시작")
+    """# 6. Inference & Save File
+    * 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
+    """
 
-preds_list = []
+    log.info("추론 시작")
 
-model.eval()
-for image, _ in tqdm(tst_loader):
-    image = image.to(device)
+    preds_list = []
 
-    with torch.no_grad():
-        preds = model(image)
-    preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
+    model.eval()
+    for image, _ in tqdm(tst_loader):
+        image = image.to(device)
 
-pred_df = pd.DataFrame(tst_dataset.df, columns=['ID', 'target'])
-pred_df['target'] = preds_list
+        with torch.no_grad():
+            preds = model(image)
+        preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
 
-sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
-assert (sample_submission_df['ID'] == pred_df['ID']).all()
+    pred_df = pd.DataFrame(tst_dataset.df, columns=['ID', 'target'])
+    pred_df['target'] = preds_list
 
-import os
-output_path = "output"
-os.makedirs(output_path, exist_ok=True)
-pred_df.to_csv(f"{output_path}/pred.csv", index=False)
+    sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
+    assert (sample_submission_df['ID'] == pred_df['ID']).all()
 
-log.info(f"추론 완료 - 결과 파일 저장: {output_path}/pred.csv")
-log.info("전체 프로세스 완료")
+    output_path = cfg.output.dir
+    os.makedirs(output_path, exist_ok=True)
+    pred_df.to_csv(f"{output_path}/{cfg.output.filename}", index=False)
 
-pred_df.head()
+    log.info(f"추론 완료 - 결과 파일 저장: {output_path}/{cfg.output.filename}")
+    log.info("전체 프로세스 완료")
+
+    print(pred_df.head())
+
+if __name__ == "__main__":
+    main()

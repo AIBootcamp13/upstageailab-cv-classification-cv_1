@@ -11,6 +11,7 @@
 - **pandas 2.1.4, numpy 1.26.0** - 데이터 처리
 - **scikit-learn** - 평가 메트릭
 - **PIL, OpenCV** - 이미지 처리
+- **hydra-core 1.3.0** - 설정 관리 및 하이퍼파라미터 관리
 
 ## 프로젝트 구조
 
@@ -63,12 +64,21 @@
 ### 2. 실험별 특징
 - **exp1**: k-fold 교차 검증 실험 (holdout, kfold)
 - **exp2**: 고급 모델 실험 (TTA, EfficientNet-v2, 앙상블)
-- **exp3**: 최종 실험 (메인 실험)
+- **exp3**: 최종 실험 (Hydra 설정 관리 시스템 적용)
 
 ### 3. 적응형 증강 시스템
 - 테스트 데이터 분석 기반 증강
 - Augraphy 기반 문서 특화 증강
 - 점진적 증강 강도 조절
+
+### 4. Hydra 설정 관리 (exp3)
+- YAML 기반 하이퍼파라미터 설정 관리
+- 커맨드라인에서 실시간 파라미터 오버라이드
+- 다양한 실험 설정 템플릿 제공
+- 설정 파일 구조:
+  - `config/config.yaml` - 기본 설정
+  - `config/fast_test.yaml` - 빠른 테스트용 설정
+  - `config/high_performance.yaml` - 고성능 실험용 설정
 
 ## 파일 명명 규칙
 - 실험 파일: `baseline_code_v{version}_{feature}.py`
@@ -81,6 +91,44 @@
 - 환경 파일: `pyproject.toml`, `uv.lock`
 - Python 버전: 3.10.13
 - 실행 명령어: `uv run <script_name>`
+- 가상환경은 uv로 관리되며, 패키지는 이미 설치되어 있고, 코드를 실행했을때  만약 패키지 설치가 안되서 오류가 발생하는 경우에는 해당 패키지만 추가로 설치하되 uv add 명령을 사용해서 패키지를 설치해야 한다. 그리고 .py 실행은 uv run 명령으로 실행해야한다. 이점을 주의해라.
+
+### Hydra 사용법 (exp3)
+Hydra를 사용하여 설정을 관리하는 exp3 실험의 실행 방법:
+
+#### 기본 실행
+```bash
+# 기본 설정(config.yaml) 사용
+uv run exp3_main.py
+```
+
+#### 설정 파일 변경
+```bash
+# fast_test.yaml 설정 사용
+uv run exp3_main.py --config-name=fast_test
+
+# high_performance.yaml 설정 사용
+uv run exp3_main.py --config-name=high_performance
+```
+
+#### 커맨드라인 파라미터 오버라이드
+```bash
+# 에포크 수 변경
+uv run exp3_main.py training.epochs=5
+
+# 여러 파라미터 동시 변경
+uv run exp3_main.py training.epochs=5 training.batch_size=16 model.name=resnet50
+
+# 이미지 크기와 학습률 변경
+uv run exp3_main.py data.img_size=224 training.lr=1e-4
+```
+
+#### 하이퍼파라미터 설정 구조
+- **data**: 데이터 관련 설정 (data_path, img_size, num_workers)
+- **model**: 모델 관련 설정 (name, num_classes, pretrained)
+- **training**: 훈련 관련 설정 (lr, epochs, batch_size, seed)
+- **device**: 디바이스 설정 (cuda/cpu)
+- **output**: 출력 관련 설정 (dir, filename) 
 
 ## 주의사항
 - 메모리 사용량 고려 (GPU 메모리 모니터링)
