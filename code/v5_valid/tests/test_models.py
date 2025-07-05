@@ -8,6 +8,7 @@ import sys
 import pytest
 import torch
 import tempfile
+import shutil
 from omegaconf import OmegaConf
 
 # 상위 디렉토리를 path에 추가
@@ -18,6 +19,9 @@ from models import (
     setup_model_and_optimizer,
     save_model,
     load_model,
+    save_model_with_metadata,
+    load_model_with_metadata,
+    get_model_save_path,
     get_model_info
 )
 
@@ -83,7 +87,7 @@ class TestModelAndOptimizerSetup:
     """모델과 옵티마이저 설정 함수 테스트"""
     
     def test_setup_model_and_optimizer_cpu(self):
-        """CPU에서 모델과 옵티마이저 설정 테스트"""
+        """CPU에서 모델과 옵티마이저 설정 테스트 (스케쥴러 비활성화)"""
         cfg = OmegaConf.create({
             'model': {
                 'name': 'resnet18',
@@ -91,12 +95,15 @@ class TestModelAndOptimizerSetup:
                 'num_classes': 10
             },
             'training': {
-                'lr': 0.001
+                'lr': 0.001,
+                'scheduler': {
+                    'enabled': False
+                }
             }
         })
         device = torch.device('cpu')
         
-        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
         
         # 모델 확인
         assert model is not None
@@ -110,6 +117,40 @@ class TestModelAndOptimizerSetup:
         # 손실 함수 확인
         assert loss_fn is not None
         assert isinstance(loss_fn, torch.nn.CrossEntropyLoss)
+        
+        # 스케쥴러 확인 (비활성화됨)
+        assert scheduler is None
+    
+    def test_setup_model_and_optimizer_with_scheduler(self):
+        """스케쥴러 포함 설정 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 5
+            },
+            'training': {
+                'lr': 0.001,
+                'epochs': 10,
+                'scheduler': {
+                    'enabled': True,
+                    'name': 'cosine',
+                    'cosine': {
+                        'T_max': 100,
+                        'eta_min': 1e-6,
+                        'last_epoch': -1
+                    }
+                }
+            }
+        })
+        device = torch.device('cpu')
+        
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
+        
+        assert model is not None
+        assert optimizer is not None
+        assert loss_fn is not None
+        assert scheduler is not None  # 스케쥴러가 생성되어야 함
     
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
     def test_setup_model_and_optimizer_cuda(self):
@@ -121,18 +162,24 @@ class TestModelAndOptimizerSetup:
                 'num_classes': 5
             },
             'training': {
-                'lr': 0.01
+                'lr': 0.01,
+                'scheduler': {
+                    'enabled': False
+                }
             }
         })
         device = torch.device('cuda')
         
-        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
         
         # 모델이 GPU에 있는지 확인
         assert next(model.parameters()).device.type == 'cuda'
         
         # 옵티마이저 학습률 확인
         assert optimizer.param_groups[0]['lr'] == 0.01
+        
+        # 스케쥴러 확인 (비활성화됨)
+        assert scheduler is None
 
 
 class TestModelSaveLoad:
@@ -142,6 +189,10 @@ class TestModelSaveLoad:
         """테스트 준비"""
         self.temp_dir = tempfile.mkdtemp()
         self.model_path = os.path.join(self.temp_dir, "test_model.pth")
+    
+    def teardown_method(self):
+        """테스트 정리"""
+        shutil.rmtree(self.temp_dir)
     
     def test_save_and_load_model(self):
         """모델 저장 및 로딩 테스트"""
@@ -183,6 +234,65 @@ class TestModelSaveLoad:
         # 파일이 생성되었는지 확인
         assert os.path.exists(self.model_path)
         assert os.path.getsize(self.model_path) > 0
+    
+    def test_save_load_model_with_metadata(self):
+        """메타데이터 포함 모델 저장/로드 테스트"""
+        model = create_model("resnet18", pretrained=False, num_classes=5)
+        save_path = os.path.join(self.temp_dir, "test_model_meta.pth")
+        metadata = {
+            "epoch": 10,
+            "val_acc": 0.95,
+            "model_name": "resnet18"
+        }
+        
+        save_model_with_metadata(model, save_path, metadata)
+        
+        assert os.path.exists(save_path)
+        
+        # 메타데이터 포함 로드 테스트
+        loaded_model = create_model("resnet18", pretrained=False, num_classes=5)
+        loaded_model, loaded_metadata = load_model_with_metadata(loaded_model, save_path)
+        
+        assert loaded_model is not None
+        assert loaded_metadata is not None
+        assert loaded_metadata["epoch"] == 10
+        assert loaded_metadata["val_acc"] == 0.95
+        assert loaded_metadata["model_name"] == "resnet18"
+    
+    def test_get_model_save_path(self):
+        """모델 저장 경로 생성 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18'
+            },
+            'model_save': {
+                'enabled': True,
+                'dir': self.temp_dir
+            }
+        })
+        
+        best_path = get_model_save_path(cfg, "best")
+        last_path = get_model_save_path(cfg, "last")
+        
+        assert best_path is not None
+        assert last_path is not None
+        assert "resnet18_best.pth" in best_path
+        assert "resnet18_last.pth" in last_path
+    
+    def test_get_model_save_path_disabled(self):
+        """모델 저장 비활성화 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18'
+            },
+            'model_save': {
+                'enabled': False,
+                'dir': self.temp_dir
+            }
+        })
+        
+        path = get_model_save_path(cfg, "best")
+        assert path is None
 
 
 class TestModelInfo:
@@ -242,7 +352,7 @@ class TestModelIntegration:
     """모델 관련 통합 테스트"""
     
     def test_model_forward_pass(self):
-        """모델 순방향 전파 테스트"""
+        """모델 순전파 테스트"""
         model = create_model('resnet18', pretrained=False, num_classes=17)
         model.eval()
         
@@ -285,22 +395,25 @@ class TestModelIntegration:
                 'num_classes': 5
             },
             'training': {
-                'lr': 0.001
+                'lr': 0.001,
+                'scheduler': {
+                    'enabled': False
+                }
             }
         })
         device = torch.device('cpu')
         
-        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
         
         # 더미 데이터
         dummy_input = torch.randn(2, 3, 224, 224)
         dummy_target = torch.randint(0, 5, (2,))
         
-        # 순방향 전파
+        # 순전파
         output = model(dummy_input)
         loss = loss_fn(output, dummy_target)
         
-        # 역방향 전파
+        # 역전파
         loss.backward()
         
         # 그래디언트가 계산되었는지 확인

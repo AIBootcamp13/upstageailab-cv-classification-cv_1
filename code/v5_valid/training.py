@@ -84,9 +84,45 @@ def validate_one_epoch(loader, model, loss_fn, device):
     }
 
 
+def update_scheduler(scheduler, val_metrics=None, cfg=None):
+    """스케쥴러 업데이트"""
+    if scheduler is None:
+        return None
+    
+    # ReduceLROnPlateau의 경우 검증 메트릭이 필요
+    if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+        if val_metrics is not None and cfg is not None:
+            monitor_metric = cfg.training.scheduler.plateau.mode
+            if monitor_metric == "min":
+                # val_loss 기준
+                scheduler.step(val_metrics.get("val_loss", 0))
+            elif monitor_metric == "max":
+                # val_acc 또는 val_f1 기준
+                scheduler.step(val_metrics.get("val_f1", 0))
+        else:
+            log.warning("ReduceLROnPlateau 스케쥴러를 위한 검증 메트릭이 없습니다")
+    else:
+        # 다른 스케쥴러들은 단순히 step() 호출
+        scheduler.step()
+    
+    # 현재 학습률 로깅 (ReduceLROnPlateau는 get_last_lr이 없음)
+    current_lr = None
+    if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+        # ReduceLROnPlateau의 경우 optimizer에서 직접 가져오기
+        current_lr = scheduler.optimizer.param_groups[0]['lr']
+    else:
+        # 다른 스케쥴러들은 get_last_lr() 사용
+        current_lr = scheduler.get_last_lr()[0]
+    
+    if current_lr is not None:
+        log.info(f"현재 학습률: {current_lr:.6f}")
+        return current_lr
+    return None
+
+
 def train_single_model(cfg, train_loader, val_loader, device):
     """단일 모델 학습 (Holdout 또는 No validation)"""
-    model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+    model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
     
     # Early stopping 초기화
     early_stopping = None
@@ -122,9 +158,14 @@ def train_single_model(cfg, train_loader, val_loader, device):
             log_message += f"val_f1: {ret['val_f1']:.4f}"
             log.info(log_message)
             
+            # 스케쥴러 업데이트 (검증 메트릭 포함)
+            current_lr = update_scheduler(scheduler, ret, cfg)
+            if current_lr is not None:
+                ret['learning_rate'] = current_lr
+            
             # wandb 로깅
             if cfg.wandb.enabled:
-                wandb.log({
+                wandb_log = {
                     "epoch": epoch + 1,
                     "train_loss": ret['train_loss'],
                     "train_acc": ret['train_acc'],
@@ -132,7 +173,10 @@ def train_single_model(cfg, train_loader, val_loader, device):
                     "val_loss": ret['val_loss'],
                     "val_acc": ret['val_acc'],
                     "val_f1": ret['val_f1'],
-                })
+                }
+                if current_lr is not None:
+                    wandb_log["learning_rate"] = current_lr
+                wandb.log(wandb_log)
             
             # 최고 성능 모델 추적 (F1 스코어 기준)
             if best_metric is None or ret['val_f1'] > best_metric:
@@ -158,14 +202,22 @@ def train_single_model(cfg, train_loader, val_loader, device):
             log_message += f"train_f1: {ret['train_f1']:.4f}"
             log.info(log_message)
             
+            # 스케쥴러 업데이트 (검증 메트릭 없음)
+            current_lr = update_scheduler(scheduler, None, cfg)
+            if current_lr is not None:
+                ret['learning_rate'] = current_lr
+            
             # wandb 로깅
             if cfg.wandb.enabled:
-                wandb.log({
+                wandb_log = {
                     "epoch": epoch + 1,
                     "train_loss": ret['train_loss'],
                     "train_acc": ret['train_acc'],
                     "train_f1": ret['train_f1'],
-                })
+                }
+                if current_lr is not None:
+                    wandb_log["learning_rate"] = current_lr
+                wandb.log(wandb_log)
         
         # Early stopping 체크
         if early_stopping is not None:
@@ -209,7 +261,7 @@ def train_kfold_models(cfg, kfold_data, device):
         )
         
         # 모델 초기화
-        model, optimizer, loss_fn = setup_model_and_optimizer(cfg, device)
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
         
         log.info(f"Fold {fold_idx + 1} 모델 로드 완료 - 훈련: {len(train_df)}개, 검증: {len(val_df)}개")
         
@@ -245,9 +297,14 @@ def train_kfold_models(cfg, kfold_data, device):
             log_message += f"val_f1: {ret['val_f1']:.4f}"
             log.info(log_message)
             
+            # 스케쥴러 업데이트
+            current_lr = update_scheduler(scheduler, ret, cfg)
+            if current_lr is not None:
+                ret['learning_rate'] = current_lr
+            
             # wandb 로깅
             if cfg.wandb.enabled:
-                wandb.log({
+                wandb_log = {
                     "fold": fold_idx + 1,
                     "epoch": epoch + 1,
                     "train_loss": ret['train_loss'],
@@ -256,7 +313,10 @@ def train_kfold_models(cfg, kfold_data, device):
                     "val_loss": ret['val_loss'],
                     "val_acc": ret['val_acc'],
                     "val_f1": ret['val_f1'],
-                })
+                }
+                if current_lr is not None:
+                    wandb_log["learning_rate"] = current_lr
+                wandb.log(wandb_log)
             
             # 최고 성능 모델 추적 (F1 스코어 기준)
             if best_metric is None or ret['val_f1'] > best_metric:
