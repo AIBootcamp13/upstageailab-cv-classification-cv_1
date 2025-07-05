@@ -426,5 +426,264 @@ class TestModelIntegration:
         assert has_gradients, "모델 파라미터에 그래디언트가 계산되지 않았습니다"
 
 
+class TestLabelSmoothing:
+    """LabelSmoothingLoss 클래스 테스트"""
+    
+    def test_label_smoothing_loss_creation(self):
+        """LabelSmoothingLoss 생성 테스트"""
+        from models import LabelSmoothingLoss
+        
+        num_classes = 10
+        smoothing = 0.1
+        
+        loss_fn = LabelSmoothingLoss(num_classes=num_classes, smoothing=smoothing)
+        
+        assert loss_fn is not None
+        assert loss_fn.num_classes == num_classes
+        assert loss_fn.smoothing == smoothing
+        assert loss_fn.confidence == 1.0 - smoothing
+    
+    def test_label_smoothing_loss_forward(self):
+        """LabelSmoothingLoss forward 테스트"""
+        from models import LabelSmoothingLoss
+        
+        num_classes = 5
+        smoothing = 0.1
+        batch_size = 4
+        
+        loss_fn = LabelSmoothingLoss(num_classes=num_classes, smoothing=smoothing)
+        
+        # 더미 데이터 생성
+        pred = torch.randn(batch_size, num_classes)
+        target = torch.randint(0, num_classes, (batch_size,))
+        
+        # Forward pass
+        loss = loss_fn(pred, target)
+        
+        # 결과 확인
+        assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0  # 스칼라 값
+        assert loss.item() >= 0  # 손실은 음수가 될 수 없음
+    
+    def test_label_smoothing_vs_cross_entropy(self):
+        """LabelSmoothing과 CrossEntropy 비교 테스트"""
+        from models import LabelSmoothingLoss
+        
+        num_classes = 5
+        smoothing = 0.1
+        batch_size = 4
+        
+        # 두 loss 함수 생성
+        label_smoothing_loss = LabelSmoothingLoss(num_classes=num_classes, smoothing=smoothing)
+        cross_entropy_loss = torch.nn.CrossEntropyLoss()
+        
+        # 더미 데이터 생성
+        pred = torch.randn(batch_size, num_classes, requires_grad=True)
+        target = torch.randint(0, num_classes, (batch_size,))
+        
+        # 손실 계산
+        ls_loss = label_smoothing_loss(pred, target)
+        ce_loss = cross_entropy_loss(pred, target)
+        
+        # 모두 유효한 손실 값이어야 함
+        assert torch.isfinite(ls_loss)
+        assert torch.isfinite(ce_loss)
+        assert ls_loss.item() >= 0
+        assert ce_loss.item() >= 0
+    
+    def test_label_smoothing_with_config(self):
+        """설정을 통한 LabelSmoothing 테스트"""
+        # LabelSmoothing 활성화 설정
+        cfg_enabled = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'label_smoothing': {
+                    'enabled': True,
+                    'smoothing': 0.15
+                },
+                'mixed_precision': {
+                    'enabled': False
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            }
+        })
+        
+        # LabelSmoothing 비활성화 설정
+        cfg_disabled = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'label_smoothing': {
+                    'enabled': False,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': False
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # LabelSmoothing 활성화 테스트
+        model1, optimizer1, loss_fn1, scheduler1 = setup_model_and_optimizer(cfg_enabled, device)
+        from models import LabelSmoothingLoss
+        assert isinstance(loss_fn1, LabelSmoothingLoss)
+        assert loss_fn1.smoothing == 0.15
+        
+        # LabelSmoothing 비활성화 테스트
+        model2, optimizer2, loss_fn2, scheduler2 = setup_model_and_optimizer(cfg_disabled, device)
+        assert isinstance(loss_fn2, torch.nn.CrossEntropyLoss)
+    
+    def test_label_smoothing_different_smoothing_values(self):
+        """다양한 smoothing 값 테스트"""
+        from models import LabelSmoothingLoss
+        
+        num_classes = 5
+        batch_size = 4
+        smoothing_values = [0.0, 0.1, 0.2, 0.3, 0.5]
+        
+        # 더미 데이터 생성
+        pred = torch.randn(batch_size, num_classes)
+        target = torch.randint(0, num_classes, (batch_size,))
+        
+        losses = []
+        for smoothing in smoothing_values:
+            loss_fn = LabelSmoothingLoss(num_classes=num_classes, smoothing=smoothing)
+            loss = loss_fn(pred, target)
+            losses.append(loss.item())
+            
+            # 유효한 손실 값인지 확인
+            assert torch.isfinite(loss)
+            assert loss.item() >= 0
+        
+        # smoothing=0.0일 때와 다른 값들 비교
+        assert len(set(losses)) > 1  # 다른 smoothing 값들이 다른 손실을 만드는지 확인
+
+
+class TestMixedPrecisionConfig:
+    """Mixed Precision Training 설정 테스트"""
+    
+    def test_mixed_precision_config_enabled(self):
+        """Mixed Precision 활성화 설정 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'label_smoothing': {
+                    'enabled': False,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': True
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # 함수 호출 테스트 (실제 Mixed Precision은 CUDA에서만 동작)
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
+        
+        # 기본 검증
+        assert model is not None
+        assert optimizer is not None
+        assert loss_fn is not None
+        assert scheduler is None
+    
+    def test_mixed_precision_config_disabled(self):
+        """Mixed Precision 비활성화 설정 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'label_smoothing': {
+                    'enabled': False,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': False
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # 함수 호출 테스트
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
+        
+        # 기본 검증
+        assert model is not None
+        assert optimizer is not None
+        assert loss_fn is not None
+        assert scheduler is None
+    
+    def test_combined_label_smoothing_and_mixed_precision(self):
+        """LabelSmoothing과 Mixed Precision 동시 활성화 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'label_smoothing': {
+                    'enabled': True,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': True
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # 함수 호출 테스트
+        model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
+        
+        # LabelSmoothing 확인
+        from models import LabelSmoothingLoss
+        assert isinstance(loss_fn, LabelSmoothingLoss)
+        assert loss_fn.smoothing == 0.1
+        
+        # 기본 검증
+        assert model is not None
+        assert optimizer is not None
+        assert scheduler is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__]) 

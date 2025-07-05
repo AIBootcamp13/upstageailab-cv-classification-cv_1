@@ -21,6 +21,36 @@ from torch.optim.lr_scheduler import (
 import log_util as log
 
 
+class LabelSmoothingLoss(nn.Module):
+    """Label Smoothing Loss 구현"""
+    
+    def __init__(self, num_classes, smoothing=0.1):
+        """
+        Args:
+            num_classes (int): 클래스 수
+            smoothing (float): 스무딩 정도 (0.0 ~ 1.0)
+        """
+        super(LabelSmoothingLoss, self).__init__()
+        self.num_classes = num_classes
+        self.smoothing = smoothing
+        self.confidence = 1.0 - smoothing
+        
+    def forward(self, pred, target):
+        """
+        Args:
+            pred (torch.Tensor): 예측값 (batch_size, num_classes)
+            target (torch.Tensor): 정답 라벨 (batch_size,)
+        """
+        log_probs = torch.log_softmax(pred, dim=-1)
+        
+        # 원-핫 인코딩으로 변환
+        true_dist = torch.zeros_like(log_probs)
+        true_dist.fill_(self.smoothing / (self.num_classes - 1))
+        true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        
+        return torch.mean(torch.sum(-true_dist * log_probs, dim=-1))
+
+
 def create_model(model_name, pretrained=True, num_classes=17):
     """TIMM을 사용해 모델 생성"""
     model = timm.create_model(
@@ -104,7 +134,17 @@ def setup_model_and_optimizer(cfg, device):
     ).to(device)
     
     optimizer = Adam(model.parameters(), lr=cfg.training.lr)
-    loss_fn = nn.CrossEntropyLoss()
+    
+    # Label Smoothing Loss 또는 CrossEntropyLoss 선택
+    if cfg.training.label_smoothing.enabled:
+        loss_fn = LabelSmoothingLoss(
+            num_classes=cfg.model.num_classes,
+            smoothing=cfg.training.label_smoothing.smoothing
+        )
+        log.info(f"LabelSmoothingLoss 사용 - smoothing: {cfg.training.label_smoothing.smoothing}")
+    else:
+        loss_fn = nn.CrossEntropyLoss()
+        log.info("CrossEntropyLoss 사용")
     
     # 스케쥴러 생성
     scheduler = create_scheduler(optimizer, cfg)

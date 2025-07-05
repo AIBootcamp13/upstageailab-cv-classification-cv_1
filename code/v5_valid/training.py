@@ -12,18 +12,34 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
 import wandb
 
+# Mixed Precision Training 지원
+try:
+    from torch.cuda.amp.autocast_mode import autocast
+    from torch.cuda.amp.grad_scaler import GradScaler
+    AMP_AVAILABLE = True
+except ImportError:
+    try:
+        # 대안적인 import 방법
+        from torch.cuda.amp import autocast, GradScaler
+        AMP_AVAILABLE = True
+    except ImportError:
+        # PyTorch 버전이 낮은 경우
+        AMP_AVAILABLE = False
+
 import log_util as log
 from data import get_kfold_loaders, get_transforms
 from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
 from utils import EarlyStopping
 
 
-def train_one_epoch(loader, model, optimizer, loss_fn, device):
+def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler=None):
     """한 에포크 학습"""
     model.train()
     train_loss = 0
     preds_list = []
     targets_list = []
+    
+    use_amp = scaler is not None
 
     pbar = tqdm(loader)
     for image, targets in pbar:
@@ -32,10 +48,21 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device):
 
         model.zero_grad(set_to_none=True)
 
-        preds = model(image)
-        loss = loss_fn(preds, targets)
-        loss.backward()
-        optimizer.step()
+        if use_amp:
+            # Mixed Precision Training
+            with autocast():
+                preds = model(image)
+                loss = loss_fn(preds, targets)
+            
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            # 일반 Training
+            preds = model(image)
+            loss = loss_fn(preds, targets)
+            loss.backward()
+            optimizer.step()
 
         train_loss += loss.item()
         preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
@@ -124,6 +151,16 @@ def train_single_model(cfg, train_loader, val_loader, device):
     """단일 모델 학습 (Holdout 또는 No validation)"""
     model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
     
+    # Mixed Precision Training 설정
+    scaler = None
+    if cfg.training.mixed_precision.enabled and AMP_AVAILABLE and device.type == 'cuda':
+        scaler = GradScaler()
+        log.info("Mixed Precision Training 활성화")
+    elif cfg.training.mixed_precision.enabled and not AMP_AVAILABLE:
+        log.warning("Mixed Precision Training이 요청되었지만 PyTorch AMP가 사용 불가능합니다")
+    elif cfg.training.mixed_precision.enabled and device.type != 'cuda':
+        log.warning("Mixed Precision Training은 CUDA 환경에서만 지원됩니다")
+    
     # Early stopping 초기화
     early_stopping = None
     if val_loader is not None and cfg.validation.early_stopping.enabled:
@@ -142,7 +179,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
     
     for epoch in range(cfg.training.epochs):
         # 훈련
-        train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device)
+        train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
         ret = {**train_ret, 'epoch': epoch}
         
         # 검증 (holdout인 경우)
@@ -263,6 +300,17 @@ def train_kfold_models(cfg, kfold_data, device):
         # 모델 초기화
         model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
         
+        # Mixed Precision Training 설정 (fold별로 설정)
+        scaler = None
+        if cfg.training.mixed_precision.enabled and AMP_AVAILABLE and device.type == 'cuda':
+            scaler = GradScaler()
+            if fold_idx == 0:  # 첫 번째 fold에서만 로그 출력
+                log.info("Mixed Precision Training 활성화")
+        elif cfg.training.mixed_precision.enabled and not AMP_AVAILABLE and fold_idx == 0:
+            log.warning("Mixed Precision Training이 요청되었지만 PyTorch AMP가 사용 불가능합니다")
+        elif cfg.training.mixed_precision.enabled and device.type != 'cuda' and fold_idx == 0:
+            log.warning("Mixed Precision Training은 CUDA 환경에서만 지원됩니다")
+        
         log.info(f"Fold {fold_idx + 1} 모델 로드 완료 - 훈련: {len(train_df)}개, 검증: {len(val_df)}개")
         
         # Early stopping 초기화
@@ -282,7 +330,7 @@ def train_kfold_models(cfg, kfold_data, device):
         # 학습 시작
         for epoch in range(cfg.training.epochs):
             # 훈련
-            train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device)
+            train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
             # 검증
             val_ret = validate_one_epoch(val_loader, model, loss_fn, device)
             

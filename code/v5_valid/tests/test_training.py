@@ -398,5 +398,229 @@ class TestTrainingIntegration:
         assert losses[-1] < losses[0], f"손실이 감소하지 않았습니다: {losses}"
 
 
+class TestMixedPrecisionTraining:
+    """Mixed Precision Training 테스트"""
+    
+    def setup_method(self):
+        """테스트 준비"""
+        self.device = torch.device('cpu')
+        
+        # 간단한 모델 생성
+        self.model = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(32*32*3, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 10)
+        )
+        
+        # 더미 데이터 생성
+        self.images = torch.randn(20, 3, 32, 32)
+        self.targets = torch.randint(0, 10, (20,))
+        self.dataset = torch.utils.data.TensorDataset(self.images, self.targets)
+        self.loader = torch.utils.data.DataLoader(self.dataset, batch_size=4, shuffle=True)
+        
+        # 옵티마이저와 손실 함수
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+    
+    def test_train_one_epoch_without_scaler(self):
+        """scaler 없이 학습 테스트 (일반 학습)"""
+        result = train_one_epoch(self.loader, self.model, self.optimizer, self.loss_fn, self.device, scaler=None)
+        
+        # 반환값 확인
+        assert isinstance(result, dict)
+        assert 'train_loss' in result
+        assert 'train_acc' in result
+        assert 'train_f1' in result
+        
+        # 값 검증
+        assert result['train_loss'] >= 0
+        assert 0 <= result['train_acc'] <= 1
+        assert 0 <= result['train_f1'] <= 1
+    
+    def test_train_one_epoch_with_mock_scaler(self):
+        """Mock scaler로 Mixed Precision Training 테스트"""
+        # Mock scaler 생성
+        mock_scaler = MagicMock()
+        mock_scaler.scale.return_value = MagicMock()
+        mock_scaler.scale.return_value.backward = MagicMock()
+        
+        # 학습 실행
+        result = train_one_epoch(self.loader, self.model, self.optimizer, self.loss_fn, self.device, scaler=mock_scaler)
+        
+        # 반환값 확인
+        assert isinstance(result, dict)
+        assert 'train_loss' in result
+        assert 'train_acc' in result
+        assert 'train_f1' in result
+        
+        # Mock scaler 메서드가 호출되었는지 확인
+        assert mock_scaler.scale.called
+        assert mock_scaler.step.called
+        assert mock_scaler.update.called
+    
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+    def test_mixed_precision_with_cuda(self):
+        """CUDA에서 Mixed Precision Training 테스트"""
+        # CUDA 설정
+        device = torch.device('cuda')
+        model = self.model.to(device)
+        
+        # 데이터를 CUDA로 이동
+        images = self.images.to(device)
+        targets = self.targets.to(device)
+        dataset = torch.utils.data.TensorDataset(images, targets)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True)
+        
+        # Mixed Precision 지원 확인
+        try:
+            from torch.cuda.amp import GradScaler
+            scaler = GradScaler()
+            
+            # 학습 실행
+            optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+            result = train_one_epoch(loader, model, optimizer, self.loss_fn, device, scaler=scaler)
+            
+            # 결과 확인
+            assert isinstance(result, dict)
+            assert 'train_loss' in result
+            assert 'train_acc' in result
+            assert 'train_f1' in result
+            
+        except ImportError:
+            pytest.skip("Mixed Precision not available")
+    
+    def test_mixed_precision_setting_with_cpu(self):
+        """CPU에서 Mixed Precision 설정 시 경고 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'epochs': 1,
+                'label_smoothing': {
+                    'enabled': False,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': True  # CPU에서 활성화 요청
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            },
+            'validation': {
+                'strategy': 'none',
+                'early_stopping': {
+                    'enabled': False
+                }
+            },
+            'model_save': {
+                'enabled': False
+            },
+            'wandb': {
+                'enabled': False
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # 더미 데이터 생성
+        images = torch.randn(16, 3, 32, 32)
+        targets = torch.randint(0, 10, (16,))
+        dataset = torch.utils.data.TensorDataset(images, targets)
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=4)
+        
+        # 로그 모킹
+        with patch('training.log') as mock_log:
+            # 학습 실행 (CPU에서 Mixed Precision 요청)
+            model = train_single_model(cfg, train_loader, None, device)
+            
+            # 경고 로그가 출력되었는지 확인
+            warning_calls = [call for call in mock_log.warning.call_args_list if 'CUDA' in str(call)]
+            assert len(warning_calls) > 0, "CPU에서 Mixed Precision 요청 시 경고가 출력되지 않았습니다"
+        
+        # 모델이 정상적으로 학습되었는지 확인
+        assert model is not None
+    
+    def test_mixed_precision_unavailable_warning(self):
+        """Mixed Precision 미지원 시 경고 테스트"""
+        cfg = OmegaConf.create({
+            'model': {
+                'name': 'resnet18',
+                'pretrained': False,
+                'num_classes': 10
+            },
+            'training': {
+                'lr': 0.001,
+                'epochs': 1,
+                'label_smoothing': {
+                    'enabled': False,
+                    'smoothing': 0.1
+                },
+                'mixed_precision': {
+                    'enabled': True
+                },
+                'scheduler': {
+                    'enabled': False
+                }
+            },
+            'validation': {
+                'strategy': 'none',
+                'early_stopping': {
+                    'enabled': False
+                }
+            },
+            'model_save': {
+                'enabled': False
+            },
+            'wandb': {
+                'enabled': False
+            }
+        })
+        
+        device = torch.device('cpu')
+        
+        # 더미 데이터 생성
+        images = torch.randn(16, 3, 32, 32)
+        targets = torch.randint(0, 10, (16,))
+        dataset = torch.utils.data.TensorDataset(images, targets)
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=4)
+        
+        # AMP_AVAILABLE을 False로 패치
+        with patch('training.AMP_AVAILABLE', False):
+            with patch('training.log') as mock_log:
+                # 학습 실행
+                model = train_single_model(cfg, train_loader, None, device)
+                
+                # 경고 로그가 출력되었는지 확인
+                warning_calls = [call for call in mock_log.warning.call_args_list if 'PyTorch AMP' in str(call)]
+                assert len(warning_calls) > 0, "AMP 미지원 시 경고가 출력되지 않았습니다"
+        
+        # 모델이 정상적으로 학습되었는지 확인
+        assert model is not None
+    
+    def test_scaler_parameter_in_train_functions(self):
+        """train_one_epoch 함수의 scaler 파라미터 테스트"""
+        # scaler=None으로 호출 (기본값)
+        result1 = train_one_epoch(self.loader, self.model, self.optimizer, self.loss_fn, self.device, scaler=None)
+        
+        # scaler를 명시적으로 None으로 전달
+        result2 = train_one_epoch(self.loader, self.model, self.optimizer, self.loss_fn, self.device, None)
+        
+        # 둘 다 정상적으로 작동해야 함
+        assert isinstance(result1, dict)
+        assert isinstance(result2, dict)
+        
+        # 각 결과가 필요한 키를 가지고 있는지 확인
+        for result in [result1, result2]:
+            assert 'train_loss' in result
+            assert 'train_acc' in result
+            assert 'train_f1' in result
+
+
 if __name__ == "__main__":
     pytest.main([__file__]) 

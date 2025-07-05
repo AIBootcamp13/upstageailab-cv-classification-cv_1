@@ -21,6 +21,15 @@ training:
   batch_size: 32
   seed: 42
   
+  # Label Smoothing configuration
+  label_smoothing:
+    enabled: false
+    smoothing: 0.1  # 0.0 ~ 1.0, 일반적으로 0.1
+  
+  # Mixed Precision Training configuration
+  mixed_precision:
+    enabled: false
+    
   # Learning rate scheduler configuration
   scheduler:
     enabled: true
