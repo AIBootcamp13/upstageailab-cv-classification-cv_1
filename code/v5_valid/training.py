@@ -14,7 +14,7 @@ import wandb
 
 import log_util as log
 from data import get_kfold_loaders, get_transforms
-from models import setup_model_and_optimizer
+from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
 from utils import EarlyStopping
 
 
@@ -100,6 +100,10 @@ def train_single_model(cfg, train_loader, val_loader, device):
     
     log.info("학습 시작")
     
+    # 최고 성능 추적을 위한 변수
+    best_metric = None
+    best_epoch = 0
+    
     for epoch in range(cfg.training.epochs):
         # 훈련
         train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device)
@@ -129,6 +133,23 @@ def train_single_model(cfg, train_loader, val_loader, device):
                     "val_acc": ret['val_acc'],
                     "val_f1": ret['val_f1'],
                 })
+            
+            # 최고 성능 모델 추적 (F1 스코어 기준)
+            if best_metric is None or ret['val_f1'] > best_metric:
+                best_metric = ret['val_f1']
+                best_epoch = epoch + 1
+                
+                # 최고 성능 모델 저장
+                if cfg.model_save.enabled and cfg.model_save.save_best:
+                    best_model_path = get_model_save_path(cfg, "best")
+                    metadata = {
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name
+                    }
+                    save_model_with_metadata(model, best_model_path, metadata)
         else:
             # No validation
             log_message = f"Epoch {epoch+1}/{cfg.training.epochs} 완료 - "
@@ -151,6 +172,24 @@ def train_single_model(cfg, train_loader, val_loader, device):
             if early_stopping(ret):
                 log.info(f"Early stopping at epoch {epoch + 1}")
                 break
+    
+    # 마지막 에포크 모델 저장
+    if cfg.model_save.enabled and cfg.model_save.save_last:
+        last_model_path = get_model_save_path(cfg, "last")
+        metadata = {
+            "epoch": epoch + 1,
+            "model_name": cfg.model.name,
+            "final_train_loss": ret['train_loss'],
+            "final_train_acc": ret['train_acc'],
+            "final_train_f1": ret['train_f1']
+        }
+        if val_loader is not None:
+            metadata.update({
+                "final_val_loss": ret['val_loss'],
+                "final_val_acc": ret['val_acc'],
+                "final_val_f1": ret['val_f1']
+            })
+        save_model_with_metadata(model, last_model_path, metadata)
     
     return model
 
@@ -184,6 +223,10 @@ def train_kfold_models(cfg, kfold_data, device):
                 mode=cfg.validation.early_stopping.mode
             )
         
+        # 최고 성능 추적을 위한 변수
+        best_metric = None
+        best_epoch = 0
+        
         # 학습 시작
         for epoch in range(cfg.training.epochs):
             # 훈련
@@ -215,11 +258,45 @@ def train_kfold_models(cfg, kfold_data, device):
                     "val_f1": ret['val_f1'],
                 })
             
+            # 최고 성능 모델 추적 (F1 스코어 기준)
+            if best_metric is None or ret['val_f1'] > best_metric:
+                best_metric = ret['val_f1']
+                best_epoch = epoch + 1
+                
+                # 최고 성능 모델 저장
+                if cfg.model_save.enabled and cfg.model_save.save_best:
+                    best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
+                    metadata = {
+                        "fold": fold_idx + 1,
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name
+                    }
+                    save_model_with_metadata(model, best_model_path, metadata)
+            
             # Early stopping 체크
             if early_stopping is not None:
                 if early_stopping(ret):
                     log.info(f"Early stopping at epoch {epoch + 1}")
                     break
+        
+        # 마지막 에포크 모델 저장
+        if cfg.model_save.enabled and cfg.model_save.save_last:
+            last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
+            metadata = {
+                "fold": fold_idx + 1,
+                "epoch": epoch + 1,
+                "model_name": cfg.model.name,
+                "final_train_loss": ret['train_loss'],
+                "final_train_acc": ret['train_acc'],
+                "final_train_f1": ret['train_f1'],
+                "final_val_loss": ret['val_loss'],
+                "final_val_acc": ret['val_acc'],
+                "final_val_f1": ret['val_f1']
+            }
+            save_model_with_metadata(model, last_model_path, metadata)
         
         models.append(model)
         log.info(f"Fold {fold_idx + 1} 완료")

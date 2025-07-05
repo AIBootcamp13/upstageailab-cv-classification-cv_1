@@ -52,6 +52,14 @@ output:
   dir: "results"
   filename: "pred.csv"
 
+# Model saving configuration
+model_save:
+  enabled: true
+  dir: "models"
+  save_best: true  # 최고 성능 모델 저장
+  save_last: true  # 마지막 에포크 모델 저장
+  wandb_artifact: true  # wandb 아티팩트로 등록
+
 # W&B configuration
 wandb:
   enabled: false

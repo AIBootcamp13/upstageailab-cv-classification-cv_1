@@ -125,6 +125,38 @@ def log_hyperparameters(cfg):
              f"학습률: {cfg.training.lr}, 에포크: {cfg.training.epochs}, 배치 크기: {cfg.training.batch_size}")
 
 
+def save_model_as_artifact(model_path, cfg, model_type="best", metadata=None):
+    """모델을 wandb 아티팩트로 저장"""
+    if not cfg.wandb.enabled:
+        return
+    
+    try:
+        # 아티팩트 생성
+        artifact_name = f"{cfg.model.name}_model_{model_type}"
+        artifact = wandb.Artifact(
+            name=artifact_name,
+            type="model",
+            description=f"{cfg.model.name} {model_type} model",
+            metadata=metadata
+        )
+        
+        # 모델 파일 추가
+        artifact.add_file(model_path)
+        
+        # 아티팩트 로깅
+        wandb.log_artifact(artifact)
+        log.info(f"wandb 아티팩트로 모델 저장 완료: {artifact_name}")
+        
+    except Exception as e:
+        log.error(f"wandb 아티팩트 저장 실패: {e}")
+
+
+def log_model_metrics(metrics, step=None):
+    """모델 메트릭을 wandb에 로깅"""
+    if wandb.run is not None:
+        wandb.log(metrics, step=step)
+
+
 def finish_wandb(cfg):
     """wandb 세션 종료"""
     if cfg.wandb.enabled:
