@@ -285,7 +285,7 @@ class TestModuleIntegration:
         for img_name in test_data['ID']:
             img = Image.new('RGB', (32, 32), color='blue')
             img.save(os.path.join(self.data_dir, "test", img_name))
-        
+    
         # 설정
         self.cfg = OmegaConf.create({
             'data': {

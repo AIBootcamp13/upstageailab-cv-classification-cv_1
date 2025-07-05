@@ -57,6 +57,6 @@ wandb:
   enabled: false
   project: null
   entity: null  # will be loaded from .env file
-  run_name: "jhryu_v4_wandb_test"  # auto-generated if null
+  run_name: "jhryu_v5_valid_test"  # auto-generated if null
   tags: []
   notes: ""

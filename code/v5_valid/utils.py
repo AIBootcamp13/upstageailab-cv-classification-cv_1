@@ -94,9 +94,28 @@ def setup_wandb(cfg):
 
 
 def get_device(cfg):
-    """디바이스 설정"""
-    device = torch.device('cuda' if torch.cuda.is_available() and cfg.device == 'cuda' else 'cpu')
-    log.info(f"사용 장치: {device}")
+    """디바이스 설정 (CUDA, MPS, CPU 지원)"""
+    if cfg.device == 'mps' and torch.backends.mps.is_available():
+        device = torch.device('mps')
+        log.info(f"사용 장치: {device} (Apple Silicon GPU)")
+    elif cfg.device == 'cuda' and torch.cuda.is_available():
+        device = torch.device('cuda')
+        log.info(f"사용 장치: {device}")
+    elif cfg.device == 'auto':
+        # 자동 선택: MPS > CUDA > CPU 순서
+        if torch.backends.mps.is_available():
+            device = torch.device('mps')
+            log.info(f"사용 장치: {device} (자동 선택 - Apple Silicon GPU)")
+        elif torch.cuda.is_available():
+            device = torch.device('cuda')
+            log.info(f"사용 장치: {device} (자동 선택)")
+        else:
+            device = torch.device('cpu')
+            log.info(f"사용 장치: {device} (자동 선택)")
+    else:
+        device = torch.device('cpu')
+        log.info(f"사용 장치: {device}")
+    
     return device
 
 
