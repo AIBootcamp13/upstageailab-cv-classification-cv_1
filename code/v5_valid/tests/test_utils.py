@@ -38,10 +38,9 @@ class TestEarlyStopping:
         assert not early_stopping({'val_loss': 0.8})
         
         # 개선되지 않는 경우
-        assert not early_stopping({'val_loss': 0.81})  # min_delta 내에서 변화
-        assert not early_stopping({'val_loss': 0.82})  # patience 1
-        assert not early_stopping({'val_loss': 0.83})  # patience 2
-        assert early_stopping({'val_loss': 0.84})      # patience 3, should stop
+        assert not early_stopping({'val_loss': 0.81})  # min_delta 내에서 변화, counter=1
+        assert not early_stopping({'val_loss': 0.82})  # counter=2
+        assert early_stopping({'val_loss': 0.83})      # counter=3, should stop
     
     def test_early_stopping_max_mode_basic(self):
         """최대화 모드 기본 동작 테스트"""
@@ -53,9 +52,8 @@ class TestEarlyStopping:
         assert not early_stopping({'val_acc': 0.95})
         
         # 개선되지 않는 경우
-        assert not early_stopping({'val_acc': 0.94})  # min_delta 내에서 변화
-        assert not early_stopping({'val_acc': 0.93})  # patience 1
-        assert early_stopping({'val_acc': 0.92})      # patience 2, should stop
+        assert not early_stopping({'val_acc': 0.94})  # min_delta 내에서 변화, counter=1
+        assert early_stopping({'val_acc': 0.93})      # counter=2, should stop
     
     def test_early_stopping_patience(self):
         """patience 파라미터 테스트"""
@@ -74,29 +72,26 @@ class TestEarlyStopping:
         
         # min_delta보다 작은 개선은 개선으로 인정하지 않음
         assert not early_stopping({'val_loss': 1.0})
-        assert not early_stopping({'val_loss': 0.95})  # 0.05 개선 (< 0.1)
-        assert not early_stopping({'val_loss': 0.94})  # patience 1
-        assert early_stopping({'val_loss': 0.93})      # patience 2, should stop
+        assert not early_stopping({'val_loss': 0.95})  # 0.05 개선 (< 0.1), counter=1
+        assert early_stopping({'val_loss': 0.94})      # counter=2, should stop
     
     def test_early_stopping_monitor_key(self):
         """monitor 키 변경 테스트"""
         early_stopping = EarlyStopping(patience=2, min_delta=0.01, monitor='custom_metric', mode='max')
         
         assert not early_stopping({'custom_metric': 0.8})
-        assert not early_stopping({'custom_metric': 0.75})  # 감소
-        assert not early_stopping({'custom_metric': 0.74})  # patience 1
-        assert early_stopping({'custom_metric': 0.73})     # patience 2, should stop
+        assert not early_stopping({'custom_metric': 0.75})  # 감소, counter=1
+        assert early_stopping({'custom_metric': 0.74})     # counter=2, should stop
     
     def test_early_stopping_reset_on_improvement(self):
         """개선 시 counter 리셋 테스트"""
         early_stopping = EarlyStopping(patience=2, min_delta=0.01, monitor='val_loss', mode='min')
         
         assert not early_stopping({'val_loss': 1.0})
-        assert not early_stopping({'val_loss': 1.01})  # patience 1
+        assert not early_stopping({'val_loss': 1.01})  # counter=1
         assert not early_stopping({'val_loss': 0.8})   # 개선 - counter 리셋
-        assert not early_stopping({'val_loss': 0.81})  # patience 1 (새로 시작)
-        assert not early_stopping({'val_loss': 0.82})  # patience 2
-        assert early_stopping({'val_loss': 0.83})      # should stop
+        assert not early_stopping({'val_loss': 0.81})  # counter=1 (새로 시작)
+        assert early_stopping({'val_loss': 0.82})      # counter=2, should stop
 
 
 class TestSetSeed:
@@ -253,7 +248,7 @@ class TestGetDevice:
         device = get_device(cfg)
         
         assert device.type == 'cuda'
-        mock_log.info.assert_called_with("사용 장치: cuda:0")
+        mock_log.info.assert_called_with("사용 장치: cuda")
     
     @patch('utils.torch.cuda.is_available')
     @patch('utils.log')

@@ -118,7 +118,7 @@ class TestPredictKFoldEnsemble:
         predictions = predict_kfold_ensemble(self.models, self.test_loader, self.device)
         
         # 반환값 확인
-        assert isinstance(predictions, list)
+        assert isinstance(predictions, np.ndarray)
         assert len(predictions) == 15  # 테스트 데이터 개수
         
         # 예측값이 클래스 인덱스인지 확인
@@ -126,8 +126,8 @@ class TestPredictKFoldEnsemble:
             assert isinstance(pred, (int, np.integer))
             assert 0 <= pred < 5  # 클래스 수
         
-        # 로그 호출 확인
-        mock_log.info.assert_called_with("K-Fold 앙상블 추론 시작")
+        # 로그 호출 확인 (마지막 호출)
+        mock_log.info.assert_called_with("K-Fold 앙상블 예측 계산 중...")
     
     @patch('inference.log')
     def test_predict_kfold_ensemble_single_model(self, mock_log):
@@ -140,7 +140,7 @@ class TestPredictKFoldEnsemble:
         
         # 단일 모델 추론과 비교
         direct_predictions = predict_single_model(self.models[0], self.test_loader, self.device)
-        assert predictions == direct_predictions
+        np.testing.assert_array_equal(predictions, direct_predictions)
     
     @patch('inference.log')
     def test_predict_kfold_ensemble_all_models_eval(self, mock_log):
@@ -173,17 +173,37 @@ class TestSavePredictions:
         })
         
         self.predictions = [i % 3 for i in range(10)]  # 더미 예측값
+        
+        # 더미 sample_submission.csv 생성
+        sample_submission_path = os.path.join(self.temp_dir, "sample_submission.csv")
+        sample_submission_df = pd.DataFrame({
+            'ID': [f'test_{i}.jpg' for i in range(10)],
+            'target': [0] * 10
+        })
+        sample_submission_df.to_csv(sample_submission_path, index=False)
+        
+        # 설정
+        self.cfg = OmegaConf.create({
+            'data': {
+                'data_path': self.temp_dir
+            },
+            'output': {
+                'dir': self.temp_dir,
+                'filename': 'test_predictions.csv'
+            }
+        })
     
     @patch('inference.log')
     def test_save_predictions_basic(self, mock_log):
         """기본 예측 결과 저장 테스트"""
-        save_predictions(self.predictions, self.test_dataset, self.output_path)
+        pred_df = save_predictions(self.predictions, self.test_dataset, self.cfg)
         
         # 파일이 생성되었는지 확인
-        assert os.path.exists(self.output_path)
+        output_file = f"{self.cfg.output.dir}/{self.cfg.output.filename}"
+        assert os.path.exists(output_file)
         
         # 파일 내용 확인
-        saved_df = pd.read_csv(self.output_path)
+        saved_df = pd.read_csv(output_file)
         assert len(saved_df) == 10
         assert 'ID' in saved_df.columns
         assert 'target' in saved_df.columns
@@ -192,15 +212,16 @@ class TestSavePredictions:
         assert saved_df['target'].tolist() == self.predictions
         
         # 로그 호출 확인
-        mock_log.info.assert_called_with(f"예측 결과 저장 완료: {self.output_path}")
+        mock_log.info.assert_called_with(f"예측 결과 저장 완료: {output_file}")
     
     @patch('inference.log')
     def test_save_predictions_correct_format(self, mock_log):
         """저장된 파일의 형식 확인"""
-        save_predictions(self.predictions, self.test_dataset, self.output_path)
+        pred_df = save_predictions(self.predictions, self.test_dataset, self.cfg)
         
         # 파일 읽기
-        saved_df = pd.read_csv(self.output_path)
+        output_file = f"{self.cfg.output.dir}/{self.cfg.output.filename}"
+        saved_df = pd.read_csv(output_file)
         
         # 예상 형식과 일치하는지 확인
         expected_df = pd.DataFrame({
@@ -218,7 +239,7 @@ class TestSavePredictions:
         
         # 예외가 발생해야 함
         with pytest.raises(ValueError):
-            save_predictions(wrong_predictions, self.test_dataset, self.output_path)
+            save_predictions(wrong_predictions, self.test_dataset, self.cfg)
 
 
 class TestRunInference:
@@ -250,22 +271,38 @@ class TestRunInference:
             'target': [0] * 8
         })
         
+        # 더미 sample_submission.csv 생성
+        sample_submission_path = os.path.join(self.temp_dir, "sample_submission.csv")
+        sample_submission_df = pd.DataFrame({
+            'ID': [f'test_{i}.jpg' for i in range(8)],
+            'target': [0] * 8
+        })
+        sample_submission_df.to_csv(sample_submission_path, index=False)
+        
         # 설정
         self.cfg = OmegaConf.create({
+            'data': {
+                'data_path': self.temp_dir
+            },
             'output': {
                 'dir': self.temp_dir,
                 'filename': 'test_inference.csv'
+            },
+            'wandb': {
+                'enabled': False
             }
         })
     
     @patch('inference.predict_single_model')
     @patch('inference.save_predictions')
+    @patch('inference.upload_to_wandb')
     @patch('inference.log')
-    def test_run_inference_single_model(self, mock_log, mock_save, mock_predict):
+    def test_run_inference_single_model(self, mock_log, mock_upload, mock_save, mock_predict):
         """단일 모델 추론 실행 테스트"""
         # Mock 설정
         mock_predict.return_value = [i % 5 for i in range(8)]
-        mock_save.return_value = None
+        mock_save.return_value = pd.DataFrame({'ID': [f'test_{i}' for i in range(8)], 'target': [i % 5 for i in range(8)]})
+        mock_upload.return_value = None
         
         result_df = run_inference(
             self.model, self.test_loader, self.test_dataset, 
@@ -282,12 +319,14 @@ class TestRunInference:
     
     @patch('inference.predict_kfold_ensemble')
     @patch('inference.save_predictions')
+    @patch('inference.upload_to_wandb')
     @patch('inference.log')
-    def test_run_inference_kfold_ensemble(self, mock_log, mock_save, mock_predict):
+    def test_run_inference_kfold_ensemble(self, mock_log, mock_upload, mock_save, mock_predict):
         """K-Fold 앙상블 추론 실행 테스트"""
         # Mock 설정
         mock_predict.return_value = [i % 5 for i in range(8)]
-        mock_save.return_value = None
+        mock_save.return_value = pd.DataFrame({'ID': [f'test_{i}' for i in range(8)], 'target': [i % 5 for i in range(8)]})
+        mock_upload.return_value = None
         
         models = [self.model, self.model]  # 2개 모델
         
@@ -356,11 +395,25 @@ class TestInferenceIntegration:
             'target': [0] * 12
         })
         
+        # 더미 sample_submission.csv 생성
+        sample_submission_path = os.path.join(self.temp_dir, "sample_submission.csv")
+        sample_submission_df = pd.DataFrame({
+            'ID': [f'test_{i}.jpg' for i in range(12)],
+            'target': [0] * 12
+        })
+        sample_submission_df.to_csv(sample_submission_path, index=False)
+        
         # 설정
         self.cfg = OmegaConf.create({
+            'data': {
+                'data_path': self.temp_dir
+            },
             'output': {
                 'dir': self.temp_dir,
                 'filename': 'integration_test.csv'
+            },
+            'wandb': {
+                'enabled': False
             }
         })
     

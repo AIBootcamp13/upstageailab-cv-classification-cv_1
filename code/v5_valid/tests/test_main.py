@@ -310,6 +310,11 @@ class TestModuleIntegration:
                     'train_ratio': 0.8,
                     'stratify': True
                 },
+                'kfold': {
+                    'n_splits': 3,
+                    'shuffle': True,
+                    'stratify': True
+                },
                 'early_stopping': {
                     'enabled': False
                 }
