@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - config
+
+# EfficientNet v2 Small (TensorFlow weights)
+model:
+  name: "tf_efficientnetv2_s"
+  num_classes: 17
+  pretrained: true
+
+training:
+  lr: 1e-3
+  epochs: 1
+  batch_size: 32
+  seed: 42
+
+data:
+  img_size: 224
+  num_workers: 0
+
+device: mps
+
+output:
+  filename: "pred_efnv2s_tf.csv" 
