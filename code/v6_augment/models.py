@@ -53,67 +53,79 @@ class LabelSmoothingLoss(nn.Module):
 
 def create_model(model_name, pretrained=True, num_classes=17):
     """TIMM을 사용해 모델 생성"""
-    model = timm.create_model(
-        model_name,
-        pretrained=pretrained,
-        num_classes=num_classes
-    )
+    try:
+        model = timm.create_model(
+            model_name,
+            pretrained=pretrained,
+            num_classes=num_classes,
+        )
+    except Exception:
+        # 프리트레인 모델 다운로드 실패 시 pretrained=False로 재시도
+        model = timm.create_model(
+            model_name,
+            pretrained=False,
+            num_classes=num_classes,
+        )
     return model
 
 
 def create_scheduler(optimizer, cfg):
     """설정에 따라 스케쥴러 생성"""
-    if not cfg.training.scheduler.enabled:
+    sched_cfg = getattr(cfg.training, "scheduler", {"enabled": False, "name": "none"})
+    if not sched_cfg.get("enabled", False):
         return None
-    
-    scheduler_name = cfg.training.scheduler.name.lower()
+
+    scheduler_name = sched_cfg.get("name", "none").lower()
     
     if scheduler_name == "cosine":
-        # T_max를 epochs로 자동 설정 (설정에서 지정하지 않은 경우)
-        T_max = cfg.training.scheduler.cosine.T_max
-        if T_max == 100:  # 기본값인 경우 epochs로 변경
+        cosine_cfg = sched_cfg.get("cosine", {})
+        T_max = cosine_cfg.get("T_max", 100)
+        if T_max == 100:
             T_max = cfg.training.epochs
-            
+
         scheduler = CosineAnnealingLR(
             optimizer,
             T_max=T_max,
-            eta_min=cfg.training.scheduler.cosine.eta_min,
-            last_epoch=cfg.training.scheduler.cosine.last_epoch
+            eta_min=cosine_cfg.get("eta_min", 1e-6),
+            last_epoch=cosine_cfg.get("last_epoch", -1)
         )
-        log.info(f"CosineAnnealingLR 스케쥴러 생성 - T_max: {T_max}, eta_min: {cfg.training.scheduler.cosine.eta_min}")
+        log.info(f"CosineAnnealingLR 스케쥴러 생성 - T_max: {T_max}, eta_min: {cosine_cfg.get('eta_min', 1e-6)}")
         
     elif scheduler_name == "step":
+        step_cfg = sched_cfg.get("step", {})
         scheduler = StepLR(
             optimizer,
-            step_size=cfg.training.scheduler.step.step_size,
-            gamma=cfg.training.scheduler.step.gamma,
-            last_epoch=cfg.training.scheduler.step.last_epoch
+            step_size=step_cfg.get("step_size", 30),
+            gamma=step_cfg.get("gamma", 0.1),
+            last_epoch=step_cfg.get("last_epoch", -1)
         )
-        log.info(f"StepLR 스케쥴러 생성 - step_size: {cfg.training.scheduler.step.step_size}, gamma: {cfg.training.scheduler.step.gamma}")
+        log.info(f"StepLR 스케쥴러 생성 - step_size: {step_cfg.get('step_size',30)}, gamma: {step_cfg.get('gamma',0.1)}")
         
     elif scheduler_name == "plateau":
+        p_cfg = sched_cfg.get("plateau", {})
         scheduler = ReduceLROnPlateau(
             optimizer,
-            mode=cfg.training.scheduler.plateau.mode,
-            factor=cfg.training.scheduler.plateau.factor,
-            patience=cfg.training.scheduler.plateau.patience,
-            threshold=cfg.training.scheduler.plateau.threshold,
-            threshold_mode=cfg.training.scheduler.plateau.threshold_mode,
-            cooldown=cfg.training.scheduler.plateau.cooldown,
-            min_lr=cfg.training.scheduler.plateau.min_lr,
-            eps=cfg.training.scheduler.plateau.eps
+            mode=p_cfg.get("mode", "min"),
+            factor=p_cfg.get("factor", 0.5),
+            patience=p_cfg.get("patience", 5),
+            threshold=p_cfg.get("threshold", 1e-4),
+            threshold_mode=p_cfg.get("threshold_mode", "rel"),
+            cooldown=p_cfg.get("cooldown", 0),
+            min_lr=p_cfg.get("min_lr", 1e-8),
+            eps=p_cfg.get("eps", 1e-8)
         )
-        log.info(f"ReduceLROnPlateau 스케쥴러 생성 - mode: {cfg.training.scheduler.plateau.mode}, patience: {cfg.training.scheduler.plateau.patience}")
+        log.info(f"ReduceLROnPlateau 스케쥴러 생성 - mode: {p_cfg.get('mode','min')}, patience: {p_cfg.get('patience',5)}")
         
     elif scheduler_name == "cosine_warm":
+        cw_cfg = sched_cfg.get("cosine_warm", {})
         scheduler = CosineAnnealingWarmRestarts(
             optimizer,
-            T_0=cfg.training.scheduler.cosine_warm.T_0,
-            T_mult=cfg.training.scheduler.cosine_warm.T_mult,
-            eta_min=cfg.training.scheduler.cosine_warm.eta_min,
-            last_epoch=cfg.training.scheduler.cosine_warm.last_epoch
+            T_0=cw_cfg.get("T_0", 10),
+            T_mult=cw_cfg.get("T_mult", 1),
+            eta_min=cw_cfg.get("eta_min", 1e-6),
+            last_epoch=cw_cfg.get("last_epoch", -1)
         )
-        log.info(f"CosineAnnealingWarmRestarts 스케쥴러 생성 - T_0: {cfg.training.scheduler.cosine_warm.T_0}")
+        log.info(f"CosineAnnealingWarmRestarts 스케쥴러 생성 - T_0: {cw_cfg.get('T_0',10)}")
         
     elif scheduler_name == "none":
         scheduler = None
@@ -136,12 +148,13 @@ def setup_model_and_optimizer(cfg, device):
     optimizer = Adam(model.parameters(), lr=cfg.training.lr)
     
     # Label Smoothing Loss 또는 CrossEntropyLoss 선택
-    if cfg.training.label_smoothing.enabled:
+    ls_cfg = getattr(cfg.training, "label_smoothing", {"enabled": False})
+    if ls_cfg.get("enabled", False):
         loss_fn = LabelSmoothingLoss(
             num_classes=cfg.model.num_classes,
-            smoothing=cfg.training.label_smoothing.smoothing
+            smoothing=ls_cfg.get("smoothing", 0.1)
         )
-        log.info(f"LabelSmoothingLoss 사용 - smoothing: {cfg.training.label_smoothing.smoothing}")
+        log.info(f"LabelSmoothingLoss 사용 - smoothing: {ls_cfg.get('smoothing', 0.1)}")
     else:
         loss_fn = nn.CrossEntropyLoss()
         log.info("CrossEntropyLoss 사용")

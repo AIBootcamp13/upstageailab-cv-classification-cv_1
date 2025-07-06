@@ -56,16 +56,82 @@ class IndexedImageDataset(Dataset):
         return img, target
 
 
-def get_transforms(img_size):
+class AugmentedDataset(Dataset):
+    """원본 데이터셋을 여러 번 반복하여 증강을 적용하는 래퍼"""
+
+    def __init__(self, base_dataset: Dataset, num_aug: int = 1):
+        self.base_dataset = base_dataset
+        self.num_aug = max(0, int(num_aug))
+
+    def __len__(self):
+        return len(self.base_dataset) * (self.num_aug + 1)
+
+    def __getitem__(self, idx):
+        base_idx = idx % len(self.base_dataset)
+        return self.base_dataset[base_idx]
+
+
+def _create_augraphy_lambda(intensity: float):
+    """A.Lambda wrapper for simple Augraphy-like effects"""
+    try:
+        from augraphy import AugraphyPipeline, Geometric, Brightness, Blur, Noise
+
+        pipeline = AugraphyPipeline(
+            ink_phase=[],
+            paper_phase=[],
+            post_phase=[
+                Geometric(rotate_range=(-15 * intensity, 15 * intensity), p=0.5 * intensity),
+                Brightness(brightness_range=(1 - 0.3 * intensity, 1 + 0.3 * intensity), p=0.5 * intensity),
+                Blur(blur_value=(1, 3), p=0.2 * intensity),
+                Noise(noise_type="gauss", noise_value=(0, 10 * intensity), p=0.3 * intensity),
+            ],
+        )
+
+        def _aug(image, **_):
+            try:
+                return {"image": pipeline(image)}
+            except Exception:
+                return {"image": image}
+
+        return A.Lambda(image=_aug)
+    except Exception:
+        # Augraphy 설치되어 있지 않은 경우
+        return None
+
+
+def get_transforms(cfg):
     """이미지 변환을 위한 transform들을 반환"""
-    # 훈련용 transform
-    train_transform = A.Compose([
+    img_size = cfg.data.img_size
+    aug_cfg = getattr(cfg, "augmentation", {})
+    method = getattr(aug_cfg, "method", "none").lower()
+    intensity = float(getattr(aug_cfg, "intensity", 0))
+
+    train_ops = []
+    if method in ("albumentations", "mix") and intensity > 0:
+        train_ops.extend([
+            A.HorizontalFlip(p=0.5 * intensity),
+            A.Rotate(limit=int(15 * intensity), p=0.5 * intensity),
+            A.RandomBrightnessContrast(
+                brightness_limit=0.2 * intensity,
+                contrast_limit=0.2 * intensity,
+                p=0.5 * intensity,
+            ),
+            A.Blur(blur_limit=3, p=0.2 * intensity),
+        ])
+
+    if method in ("augraphy", "mix") and intensity > 0:
+        augraphy_aug = _create_augraphy_lambda(intensity)
+        if augraphy_aug is not None:
+            train_ops.append(augraphy_aug)
+
+    train_ops.extend([
         A.Resize(height=img_size, width=img_size),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(),
     ])
 
-    # 테스트용 transform
+    train_transform = A.Compose(train_ops)
+
     test_transform = A.Compose([
         A.Resize(height=img_size, width=img_size),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -81,9 +147,9 @@ def prepare_data_loaders(cfg, seed):
     img_size = cfg.data.img_size
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
-    
+
     # Transform 준비
-    train_transform, test_transform = get_transforms(img_size)
+    train_transform, test_transform = get_transforms(cfg)
     
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(f"{data_path}/train.csv")
@@ -102,6 +168,9 @@ def prepare_data_loaders(cfg, seed):
         pin_memory=True
     )
     
+    # augmentation 설정
+    aug_cfg = getattr(cfg, "augmentation", {})
+
     # 검증 전략에 따른 데이터 분할
     validation_strategy = cfg.validation.strategy
     
@@ -117,15 +186,17 @@ def prepare_data_loaders(cfg, seed):
         
     elif validation_strategy == "none":
         train_dataset = IndexedImageDataset(
-            full_train_df, 
-            f"{data_path}/train/", 
+            full_train_df,
+            f"{data_path}/train/",
             transform=train_transform
         )
+        if getattr(aug_cfg, "train_count", 0) > 0:
+            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
         train_loader = DataLoader(
-            train_dataset, 
-            batch_size=batch_size, 
-            shuffle=True, 
-            num_workers=num_workers, 
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
             pin_memory=True, 
             drop_last=False
         )
@@ -158,15 +229,20 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, tes
     
     # Dataset 정의
     train_dataset = IndexedImageDataset(
-        train_df, 
-        f"{data_path}/train/", 
+        train_df,
+        f"{data_path}/train/",
         transform=train_transform
     )
+    if getattr(aug_cfg, "train_count", 0) > 0:
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
+
     val_dataset = IndexedImageDataset(
-        val_df, 
-        f"{data_path}/train/", 
+        val_df,
+        f"{data_path}/train/",
         transform=test_transform
     )
+    if getattr(aug_cfg, "valid_count", 0) > 0:
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))
     
     # DataLoader 정의
     train_loader = DataLoader(
@@ -213,15 +289,19 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform
     
     # Dataset 정의
     train_dataset = IndexedImageDataset(
-        train_df, 
-        f"{data_path}/train/", 
+        train_df,
+        f"{data_path}/train/",
         transform=train_transform
     )
+    if getattr(aug_cfg, "train_count", 0) > 0:
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
     val_dataset = IndexedImageDataset(
-        val_df, 
-        f"{data_path}/train/", 
+        val_df,
+        f"{data_path}/train/",
         transform=test_transform
     )
+    if getattr(aug_cfg, "valid_count", 0) > 0:
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))
     
     # DataLoader 정의
     train_loader = DataLoader(

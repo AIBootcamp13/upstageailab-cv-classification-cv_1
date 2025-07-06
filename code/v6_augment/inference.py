@@ -14,25 +14,56 @@ from tqdm import tqdm
 import wandb
 
 import log_util as log
+import pandas as pd
+from torch.utils.data import DataLoader
+from data import ImageDataset, IndexedImageDataset
 
 
-def predict_single_model(model, test_loader, device):
+def _predict_probs(model, loader, device):
+    probs = []
+    with torch.no_grad():
+        for image, _ in loader:
+            image = image.to(device)
+            logits = model(image)
+            probs.append(logits.softmax(dim=1).cpu().numpy())
+    return np.concatenate(probs, axis=0)
+
+
+def _clone_dataset_with_transform(dataset, transform):
+    if hasattr(dataset, "df") and hasattr(dataset, "path"):
+        if isinstance(dataset, ImageDataset):
+            df = pd.DataFrame(dataset.df, columns=["ID", "target"])
+            return ImageDataset(df, dataset.path, transform=transform)
+        elif isinstance(dataset, IndexedImageDataset):
+            return IndexedImageDataset(dataset.df.copy(), dataset.path, transform=transform)
+    raise ValueError("Unsupported dataset type for TTA")
+
+
+def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0):
     """단일 모델로 추론"""
     log.info("추론 시작")
-    
-    preds_list = []
+
     model.eval()
-    
-    with torch.no_grad():
-        for image, _ in tqdm(test_loader, desc="Inference"):
-            image = image.to(device)
-            preds = model(image)
-            preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
-    
+
+    probs = _predict_probs(model, test_loader, device)
+
+    if tta_transform is not None and tta_count > 0:
+        for _ in range(tta_count):
+            t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
+            t_loader = DataLoader(
+                t_dataset,
+                batch_size=test_loader.batch_size,
+                shuffle=False,
+                num_workers=test_loader.num_workers,
+            )
+            probs += _predict_probs(model, t_loader, device)
+        probs /= (tta_count + 1)
+
+    preds_list = probs.argmax(axis=1).tolist()
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device):
+def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0):
     """K-Fold 모델들로 앙상블 추론"""
     log.info("K-Fold 앙상블 추론 시작")
     
@@ -41,14 +72,23 @@ def predict_kfold_ensemble(models, test_loader, device):
     for fold_idx, model in enumerate(models):
         log.info(f"Fold {fold_idx + 1} 추론 시작")
         
-        fold_predictions = []
         model.eval()
-        
-        with torch.no_grad():
-            for image, _ in tqdm(test_loader, desc=f"Fold {fold_idx + 1} Inference"):
-                image = image.to(device)
-                preds = model(image)
-                fold_predictions.extend(preds.softmax(dim=1).cpu().numpy())
+
+        probs = _predict_probs(model, test_loader, device)
+
+        if tta_transform is not None and tta_count > 0:
+            for _ in range(tta_count):
+                t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
+                t_loader = DataLoader(
+                    t_dataset,
+                    batch_size=test_loader.batch_size,
+                    shuffle=False,
+                    num_workers=test_loader.num_workers,
+                )
+                probs += _predict_probs(model, t_loader, device)
+            probs /= (tta_count + 1)
+
+        fold_predictions = probs
         
         all_predictions.append(fold_predictions)
         log.info(f"Fold {fold_idx + 1} 추론 완료")
@@ -117,9 +157,23 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
     """추론 실행 및 결과 저장"""
     # 추론 실행
     if is_kfold:
-        predictions = predict_kfold_ensemble(models_or_model, test_loader, device)
+        aug_cfg = getattr(cfg, "augmentation", {})
+        predictions = predict_kfold_ensemble(
+            models_or_model,
+            test_loader,
+            device,
+            tta_transform=get_transforms(cfg)[0] if getattr(aug_cfg, "test_tta", 0) > 0 else None,
+            tta_count=getattr(aug_cfg, "test_tta", 0),
+        )
     else:
-        predictions = predict_single_model(models_or_model, test_loader, device)
+        aug_cfg = getattr(cfg, "augmentation", {})
+        predictions = predict_single_model(
+            models_or_model,
+            test_loader,
+            device,
+            tta_transform=get_transforms(cfg)[0] if getattr(aug_cfg, "test_tta", 0) > 0 else None,
+            tta_count=getattr(aug_cfg, "test_tta", 0),
+        )
     
     # 결과 저장
     pred_df = save_predictions(predictions, test_dataset, cfg)

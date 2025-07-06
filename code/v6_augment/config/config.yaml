@@ -29,6 +29,15 @@ training:
   # Mixed Precision Training configuration
   mixed_precision:
     enabled: false
+
+  # Data augmentation configuration
+  augmentation:
+    method: "none"            # "none", "albumentations", "augraphy", "mix"
+    intensity: 0.0             # 0.0 ~ 1.0 augmentation strength
+    train_count: 0             # number of augmented copies per image
+    valid_count: 0             # augmentation copies for validation dataset
+    valid_tta: 0               # TTA count during validation
+    test_tta: 0                # TTA count during inference
     
   # Learning rate scheduler configuration
   scheduler:

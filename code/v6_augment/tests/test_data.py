@@ -145,7 +145,11 @@ class TestTransforms:
     def test_get_transforms(self):
         """get_transforms 함수 테스트"""
         img_size = 224
-        train_transform, test_transform = get_transforms(img_size)
+        cfg = OmegaConf.create({
+            'data': {'img_size': img_size},
+            'augmentation': {'method': 'albumentations', 'intensity': 0.5}
+        })
+        train_transform, test_transform = get_transforms(cfg)
         
         # Transform 객체 확인
         assert train_transform is not None
@@ -330,8 +334,11 @@ class TestKFoldLoaders:
         skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
         self.folds = list(skf.split(self.full_train_df, self.full_train_df['target']))
         
-        # Transform 설정
-        self.train_transform, self.test_transform = get_transforms(32)
+        cfg = OmegaConf.create({
+            'data': {'img_size': 32},
+            'augmentation': {'method': 'albumentations', 'intensity': 0.0}
+        })
+        self.train_transform, self.test_transform = get_transforms(cfg)
         
         # 설정 객체
         self.cfg = OmegaConf.create({

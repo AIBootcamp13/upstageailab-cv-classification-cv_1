@@ -26,8 +26,15 @@ except ImportError:
         # PyTorch 버전이 낮은 경우
         AMP_AVAILABLE = False
 
+import pandas as pd
+from torch.utils.data import DataLoader
 import log_util as log
-from data import get_kfold_loaders, get_transforms
+from data import (
+    get_kfold_loaders,
+    get_transforms,
+    ImageDataset,
+    IndexedImageDataset,
+)
 from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
 from utils import EarlyStopping
 
@@ -81,13 +88,34 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler=None):
     }
 
 
-def validate_one_epoch(loader, model, loss_fn, device):
+def _predict_probs(model, loader, device):
+    """데이터 로더에 대한 소프트맥스 확률 반환"""
+    probs = []
+    with torch.no_grad():
+        for images, _ in loader:
+            images = images.to(device)
+            logits = model(images)
+            probs.append(logits.softmax(dim=1).cpu().numpy())
+    return np.concatenate(probs, axis=0)
+
+
+def _clone_dataset_with_transform(dataset, transform):
+    if hasattr(dataset, "df") and hasattr(dataset, "path"):
+        if isinstance(dataset, ImageDataset):
+            df = pd.DataFrame(dataset.df, columns=["ID", "target"])
+            return ImageDataset(df, dataset.path, transform=transform)
+        elif isinstance(dataset, IndexedImageDataset):
+            return IndexedImageDataset(dataset.df.copy(), dataset.path, transform=transform)
+    raise ValueError("Unsupported dataset type for TTA")
+
+
+def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_count=0):
     """한 에포크 검증"""
     model.eval()
     val_loss = 0
-    preds_list = []
     targets_list = []
 
+    base_probs_list = []
     with torch.no_grad():
         for image, targets in tqdm(loader, desc="Validating"):
             image = image.to(device)
@@ -97,12 +125,28 @@ def validate_one_epoch(loader, model, loss_fn, device):
             loss = loss_fn(preds, targets)
 
             val_loss += loss.item()
-            preds_list.extend(preds.argmax(dim=1).cpu().numpy())
+            base_probs_list.append(preds.softmax(dim=1).cpu().numpy())
             targets_list.extend(targets.cpu().numpy())
+
+    probs = np.concatenate(base_probs_list, axis=0)
+
+    if tta_transform is not None and tta_count > 0:
+        for _ in range(tta_count):
+            t_dataset = _clone_dataset_with_transform(loader.dataset, tta_transform)
+            t_loader = DataLoader(
+                t_dataset,
+                batch_size=loader.batch_size,
+                shuffle=False,
+                num_workers=loader.num_workers,
+            )
+            probs += _predict_probs(model, t_loader, device)
+        probs /= (tta_count + 1)
+
+    preds_list = probs.argmax(axis=1)
 
     val_loss /= len(loader)
     val_acc = accuracy_score(targets_list, preds_list)
-    val_f1 = f1_score(targets_list, preds_list, average='macro')
+    val_f1 = f1_score(targets_list, preds_list, average="macro")
 
     return {
         "val_loss": val_loss,
@@ -170,6 +214,10 @@ def train_single_model(cfg, train_loader, val_loader, device):
             monitor=cfg.validation.early_stopping.monitor,
             mode=cfg.validation.early_stopping.mode
         )
+
+    aug_cfg = getattr(cfg, "augmentation", {})
+    # TTA transform 준비
+    train_transform, _ = get_transforms(cfg)
     
     log.info("학습 시작")
     
@@ -184,7 +232,14 @@ def train_single_model(cfg, train_loader, val_loader, device):
         
         # 검증 (holdout인 경우)
         if val_loader is not None:
-            val_ret = validate_one_epoch(val_loader, model, loss_fn, device)
+            val_ret = validate_one_epoch(
+                val_loader,
+                model,
+                loss_fn,
+                device,
+                tta_transform=train_transform if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
+                tta_count=getattr(aug_cfg, "valid_tta", 0),
+            )
             ret.update(val_ret)
             
             log_message = f"Epoch {epoch+1}/{cfg.training.epochs} 완료 - "
@@ -288,6 +343,7 @@ def train_kfold_models(cfg, kfold_data, device):
     folds, full_train_df, data_path, train_transform, test_transform = kfold_data
     n_splits = len(folds)
     models = []
+    aug_cfg = getattr(cfg, "augmentation", {})
     
     for fold_idx, (train_idx, val_idx) in enumerate(folds):
         log.info(f"========== Fold {fold_idx + 1}/{n_splits} ==========")
@@ -332,7 +388,14 @@ def train_kfold_models(cfg, kfold_data, device):
             # 훈련
             train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
             # 검증
-            val_ret = validate_one_epoch(val_loader, model, loss_fn, device)
+            val_ret = validate_one_epoch(
+                val_loader,
+                model,
+                loss_fn,
+                device,
+                tta_transform=train_transform if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
+                tta_count=getattr(aug_cfg, "valid_tta", 0),
+            )
             
             # 결과 합치기
             ret = {**train_ret, **val_ret, 'epoch': epoch, 'fold': fold_idx + 1}
