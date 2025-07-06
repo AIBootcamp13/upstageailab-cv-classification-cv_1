@@ -19,3 +19,8 @@ dependencies = [
     "torchvision>=0.22.1",
     "wandb>=0.21.0",
 ]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.3.0",
+]
