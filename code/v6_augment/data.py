@@ -83,7 +83,8 @@ class IndexedImageDataset(Dataset):
 class AugmentedDataset(Dataset):
     """원본 데이터셋을 여러 번 반복하여 증강을 적용하는 래퍼"""
 
-    def __init__(self, base_dataset, num_aug: int = 1, add_org: bool = False, aug_transform=None, org_transform=None):
+    def __init__(self, base_dataset, num_aug: int = 1, add_org: bool = False,
+                 aug_transform=None, org_transform=None):
         self.base_dataset = base_dataset
         self.num_aug = max(0, int(num_aug))
         self.add_org = add_org
@@ -99,10 +100,10 @@ class AugmentedDataset(Dataset):
     def __getitem__(self, idx):
         base_idx = idx % len(self.base_dataset)
         aug_idx = idx // len(self.base_dataset)
-        
+
         # base_dataset에서 원본 이미지 로드 (transform 없이)
         original_image, target = self.base_dataset[base_idx]
-        
+
         # 원본 이미지 처리 (마지막 패스)
         if self.add_org and aug_idx == self.num_aug:
             if self.org_transform:
@@ -110,13 +111,13 @@ class AugmentedDataset(Dataset):
             else:
                 image = original_image
             return image, target, base_idx
-        
+
         # 증강 이미지 처리
         if self.aug_transform:
             image = self.aug_transform(image=original_image)['image']
         else:
             image = original_image
-        
+
         return image, target, base_idx
 
 
@@ -179,9 +180,12 @@ def _create_augraphy_lambda(intensity: float, ops: list[str] | None = None):
         if not ops or ops == ["all"]:
             ops = list(all_ops.keys())
 
-        ink_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "ink" and name in ops]
-        paper_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "paper" and name in ops]
-        post_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "post" and name in ops]
+        ink_phase = [aug for name, (phase, aug) in all_ops.items()
+                     if phase == "ink" and name in ops]
+        paper_phase = [aug for name, (phase, aug) in all_ops.items()
+                       if phase == "paper" and name in ops]
+        post_phase = [aug for name, (phase, aug) in all_ops.items()
+                      if phase == "post" and name in ops]
 
         pipeline = AugraphyPipeline(
             ink_phase=ink_phase,
@@ -278,15 +282,15 @@ def _get_albumentations_ops(intensity: float, img_size: int):
         "pixel_dropout": A.PixelDropout(dropout_prob=0.01, p=0.1 * intensity),
     }
 
+
 def get_transforms(cfg, ops_key: str | None):
     """Return transforms for a given ops_key
-    
+
     Args:
         cfg: Configuration object
-        ops_key: Key for augmentation ops. If None, 
+        ops_key: Key for augmentation ops. If None,
                 returns basic transforms only (resize, normalize, totensor)
     """
-    img_size = getattr(getattr(cfg, "data", {}), "img_size", 224)
     aug_cfg = getattr(cfg, "augmentation", {})
     method = getattr(aug_cfg, "method", "none").lower()
     intensity = float(getattr(aug_cfg, "intensity", 0))
@@ -296,7 +300,7 @@ def get_transforms(cfg, ops_key: str | None):
 
     selected = []
     if method in ("albumentations", "mix") and intensity > 0:
-        ops_dict = _get_albumentations_ops(intensity, img_size)
+        ops_dict = _get_albumentations_ops(intensity, cfg.data.img_size)
         if not ops_list or ops_list == ["all"]:
             selected.extend(ops_dict.values())
         else:
@@ -304,13 +308,16 @@ def get_transforms(cfg, ops_key: str | None):
                 if name in ops_dict:
                     selected.append(ops_dict[name])
 
-    if method in ("augraphy", "mix") and intensity > 0 and ops_key and ops_key in ("train_aug_ops", "valid_aug_ops", "valid_tta_ops", "test_tta_ops"):
+    aug_ops_keys = ("train_aug_ops", "valid_aug_ops",
+                    "valid_tta_ops", "test_tta_ops")
+    if (method in ("augraphy", "mix") and intensity > 0
+            and ops_key and ops_key in aug_ops_keys):
         augraphy_aug = _create_augraphy_lambda(intensity, ops_list)
         if augraphy_aug is not None:
             selected.append(augraphy_aug)
 
     selected.extend([
-        A.Resize(height=img_size, width=img_size),
+        A.Resize(height=cfg.data.img_size, width=cfg.data.img_size),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(),
     ])
@@ -325,22 +332,21 @@ def prepare_data_loaders(cfg, seed):
     test_images_path = cfg.data.test_images_path
     train_csv_path = cfg.data.train_csv_path
     test_csv_path = cfg.data.test_csv_path
-    
-    img_size = cfg.data.img_size
+
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
 
     # Transform 준비
     train_transform = get_transforms(cfg, "train_aug_ops")
     val_transform = get_transforms(cfg, "valid_aug_ops")
-    test_transform = get_transforms(cfg, None)  # Basic transforms only (no augmentation)
-    
+    test_transform = get_transforms(cfg, None)  # Basic transforms only
+
     # 원본 이미지용 transform (증강 없음)
     org_transform = get_transforms(cfg, None)  # Basic transforms only
-    
+
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(train_csv_path)
-    
+
     # 테스트 데이터 로더 준비
     test_dataset = ImageDataset(
         test_csv_path,
@@ -354,13 +360,13 @@ def prepare_data_loaders(cfg, seed):
         num_workers=0,
         pin_memory=_should_use_pin_memory()
     )
-    
+
     # augmentation 설정
     aug_cfg = getattr(cfg, "augmentation", {})
 
     # 검증 전략에 따른 데이터 분할
     validation_strategy = cfg.validation.strategy
-    
+
     if validation_strategy == "holdout":
         train_loader, val_loader = _prepare_holdout_loaders(
             cfg,
@@ -372,7 +378,7 @@ def prepare_data_loaders(cfg, seed):
             org_transform
         )
         return train_loader, val_loader, test_loader, None
-        
+
     elif validation_strategy == "kfold":
         folds = _prepare_kfold_splits(cfg, full_train_df, seed)
         return None, None, test_loader, (
@@ -383,7 +389,7 @@ def prepare_data_loaders(cfg, seed):
             val_transform,
             test_transform,
         )
-        
+
     elif validation_strategy == "none":
         train_dataset = IndexedImageDataset(
             full_train_df,
@@ -392,9 +398,9 @@ def prepare_data_loaders(cfg, seed):
         )
         if getattr(aug_cfg, "train_aug_count", 0) > 0:
             train_dataset = AugmentedDataset(
-                train_dataset, 
-                getattr(aug_cfg, "train_aug_count", 0), 
-                getattr(aug_cfg, "train_aug_add_org", False), 
+                train_dataset,
+                getattr(aug_cfg, "train_aug_count", 0),
+                getattr(aug_cfg, "train_aug_add_org", False),
                 aug_transform=train_transform,  # 증강 transform
                 org_transform=org_transform     # 원본 transform
             )
@@ -411,37 +417,39 @@ def prepare_data_loaders(cfg, seed):
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_workers,
-            pin_memory=_should_use_pin_memory(), 
+            pin_memory=_should_use_pin_memory(),
             drop_last=False
         )
         return train_loader, None, test_loader, None
-        
+
     else:
         raise ValueError(f"Unknown validation strategy: {validation_strategy}")
 
 
-def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transform, val_transform, seed, org_transform):
+def _prepare_holdout_loaders(cfg, full_train_df, train_images_path,
+                             train_transform, val_transform, seed,
+                             org_transform):
     """Holdout 검증을 위한 데이터 로더 준비"""
     train_ratio = cfg.validation.holdout.train_ratio
     stratify = cfg.validation.holdout.stratify
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
     aug_cfg = getattr(cfg, "augmentation", {})
-    
+
     if stratify:
         train_df, val_df = train_test_split(
-            full_train_df, 
-            test_size=1-train_ratio, 
-            stratify=full_train_df['target'], 
+            full_train_df,
+            test_size=1-train_ratio,
+            stratify=full_train_df['target'],
             random_state=seed
         )
     else:
         train_df, val_df = train_test_split(
-            full_train_df, 
-            test_size=1-train_ratio, 
+            full_train_df,
+            test_size=1-train_ratio,
             random_state=seed
         )
-    
+
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
@@ -450,9 +458,9 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
         train_dataset = AugmentedDataset(
-            train_dataset, 
-            getattr(aug_cfg, "train_aug_count", 0), 
-            getattr(aug_cfg, "train_aug_add_org", False), 
+            train_dataset,
+            getattr(aug_cfg, "train_aug_count", 0),
+            getattr(aug_cfg, "train_aug_add_org", False),
             aug_transform=train_transform,  # 증강 transform
             org_transform=org_transform     # 원본 transform
         )
@@ -471,9 +479,9 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
         val_dataset = AugmentedDataset(
-            val_dataset, 
-            getattr(aug_cfg, "valid_aug_count", 0), 
-            getattr(aug_cfg, "valid_aug_add_org", False), 
+            val_dataset,
+            getattr(aug_cfg, "valid_aug_count", 0),
+            getattr(aug_cfg, "valid_aug_add_org", False),
             aug_transform=val_transform,    # 증강 transform
             org_transform=org_transform     # 원본 transform
         )
@@ -484,24 +492,24 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
             train_images_path,
             transform=val_transform
         )
-    
+
     # DataLoader 정의
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=batch_size, 
-        shuffle=True, 
-        num_workers=num_workers, 
-        pin_memory=_should_use_pin_memory(), 
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=_should_use_pin_memory(),
         drop_last=False
     )
     val_loader = DataLoader(
-        val_dataset, 
-        batch_size=batch_size, 
-        shuffle=False, 
-        num_workers=num_workers, 
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
         pin_memory=_should_use_pin_memory()
     )
-    
+
     return train_loader, val_loader
 
 
@@ -509,30 +517,32 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
     """K-Fold 교차 검증을 위한 분할 준비"""
     n_splits = cfg.validation.kfold.n_splits
     stratify = cfg.validation.kfold.stratify
-    
+
     if stratify:
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+        skf = StratifiedKFold(n_splits=n_splits, shuffle=True,
+                              random_state=seed)
         folds = list(skf.split(full_train_df, full_train_df['target']))
     else:
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=seed)
         folds = list(kf.split(full_train_df))
-    
+
     return folds
 
 
-def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_transform, val_transform, cfg):
+def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
+                      train_transform, val_transform, cfg):
     """특정 fold에 대한 데이터 로더 반환"""
     train_idx, val_idx = folds[fold_idx]
 
     aug_cfg = getattr(cfg, "augmentation", {})
-    
+
     # 원본 이미지용 transform (증강 없음)
     org_transform = get_transforms(cfg, None)  # Basic transforms only
-    
+
     # 현재 fold의 데이터 분할
     train_df = full_train_df.iloc[train_idx]
     val_df = full_train_df.iloc[val_idx]
-    
+
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
@@ -541,9 +551,9 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
         train_dataset = AugmentedDataset(
-            train_dataset, 
-            getattr(aug_cfg, "train_aug_count", 0), 
-            getattr(aug_cfg, "train_aug_add_org", False), 
+            train_dataset,
+            getattr(aug_cfg, "train_aug_count", 0),
+            getattr(aug_cfg, "train_aug_add_org", False),
             aug_transform=train_transform,  # 증강 transform
             org_transform=org_transform     # 원본 transform
         )
@@ -562,9 +572,9 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
         val_dataset = AugmentedDataset(
-            val_dataset, 
-            getattr(aug_cfg, "valid_aug_count", 0), 
-            getattr(aug_cfg, "valid_aug_add_org", False), 
+            val_dataset,
+            getattr(aug_cfg, "valid_aug_count", 0),
+            getattr(aug_cfg, "valid_aug_add_org", False),
             aug_transform=val_transform,    # 증강 transform
             org_transform=org_transform     # 원본 transform
         )
@@ -575,22 +585,22 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
             train_images_path,
             transform=val_transform
         )
-    
+
     # DataLoader 정의
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=cfg.training.batch_size, 
-        shuffle=True, 
-        num_workers=cfg.data.num_workers, 
-        pin_memory=_should_use_pin_memory(), 
+        train_dataset,
+        batch_size=cfg.training.batch_size,
+        shuffle=True,
+        num_workers=cfg.data.num_workers,
+        pin_memory=_should_use_pin_memory(),
         drop_last=False
     )
     val_loader = DataLoader(
-        val_dataset, 
-        batch_size=cfg.training.batch_size, 
-        shuffle=False, 
-        num_workers=cfg.data.num_workers, 
+        val_dataset,
+        batch_size=cfg.training.batch_size,
+        shuffle=False,
+        num_workers=cfg.data.num_workers,
         pin_memory=_should_use_pin_memory()
     )
-    
-    return train_loader, val_loader, train_df, val_df 
+
+    return train_loader, val_loader, train_df, val_df

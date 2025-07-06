@@ -202,6 +202,10 @@ class TestTrainSingleModel:
                 'lr': 0.01,
                 'epochs': 2
             },
+            'data': {
+                'img_size': 32,
+                'num_workers': 0
+            },
             'validation': {
                 'early_stopping': {
                     'enabled': False
@@ -513,6 +517,10 @@ class TestMixedPrecisionTraining:
                     'enabled': False
                 }
             },
+            'data': {
+                'img_size': 32,
+                'num_workers': 0
+            },
             'validation': {
                 'strategy': 'none',
                 'early_stopping': {
@@ -568,6 +576,10 @@ class TestMixedPrecisionTraining:
                 'scheduler': {
                     'enabled': False
                 }
+            },
+            'data': {
+                'img_size': 32,
+                'num_workers': 0
             },
             'validation': {
                 'strategy': 'none',

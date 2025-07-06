@@ -355,7 +355,7 @@ class TestKFoldLoaders:
         # 설정 객체
         self.cfg = OmegaConf.create({
             'training': {'batch_size': 8},
-            'data': {'num_workers': 0}
+            'data': {'num_workers': 0, 'img_size': 32}
         })
     
     def test_get_kfold_loaders(self):
