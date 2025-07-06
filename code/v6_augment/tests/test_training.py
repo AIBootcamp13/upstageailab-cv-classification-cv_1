@@ -475,7 +475,7 @@ class TestMixedPrecisionTraining:
         
         # Mixed Precision 지원 확인
         try:
-            from torch.cuda.amp import GradScaler
+            from torch.amp.grad_scaler import GradScaler
             scaler = GradScaler()
             
             # 학습 실행

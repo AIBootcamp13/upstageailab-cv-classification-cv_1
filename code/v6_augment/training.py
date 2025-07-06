@@ -15,7 +15,7 @@ import wandb
 # Mixed Precision Training 지원
 try:
     from torch.amp.autocast_mode import autocast
-    from torch.cuda.amp import GradScaler
+    from torch.amp.grad_scaler import GradScaler
     AMP_AVAILABLE = True
 except ImportError:
     try:
@@ -57,7 +57,7 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler=None):
 
         if use_amp:
             # Mixed Precision Training
-            with autocast(device_type=device.type):
+            with autocast(device.type):
                 preds = model(image)
                 loss = loss_fn(preds, targets)
             
