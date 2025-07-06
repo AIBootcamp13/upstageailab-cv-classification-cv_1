@@ -39,7 +39,7 @@ def _clone_dataset_with_transform(dataset, transform):
     raise ValueError("Unsupported dataset type for TTA")
 
 
-def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0, return_probs=False):
+def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0, tta_add_org=False, return_probs=False):
     """단일 모델로 추론
 
     Args:
@@ -48,6 +48,7 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
         device: 실행 디바이스
         tta_transform: TTA에 사용할 transform
         tta_count: TTA 횟수
+        tta_add_org: TTA 시 원본 이미지 포함 여부
         return_probs: True면 소프트맥스 확률을 반환
     """
     log.info("추론 시작")
@@ -57,6 +58,7 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
     probs = _predict_probs(model, test_loader, device)
 
     if tta_transform is not None and tta_count > 0:
+        tta_probs = []
         for _ in range(tta_count):
             t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
             t_loader = DataLoader(
@@ -65,8 +67,17 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
                 shuffle=False,
                 num_workers=test_loader.num_workers,
             )
-            probs += _predict_probs(model, t_loader, device)
-        probs /= (tta_count + 1)
+            tta_probs.append(_predict_probs(model, t_loader, device))
+        
+        # TTA 결과 평균 계산
+        tta_avg = np.mean(tta_probs, axis=0)
+        
+        if tta_add_org:
+            # 원본 이미지 포함하여 평균
+            probs = (probs + tta_avg * tta_count) / (tta_count + 1)
+        else:
+            # 원본 이미지 제외하고 TTA 결과만 사용
+            probs = tta_avg
 
     if return_probs:
         return probs
@@ -75,7 +86,7 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0, return_probs=False):
+def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0, tta_add_org=False, return_probs=False):
     """K-Fold 모델들로 앙상블 추론
 
     Args:
@@ -84,6 +95,7 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
         device: 실행 디바이스
         tta_transform: TTA transform
         tta_count: TTA 횟수
+        tta_add_org: TTA 시 원본 이미지 포함 여부
         return_probs: True면 fold 앙상블 확률을 반환
     """
     log.info("K-Fold 앙상블 추론 시작")
@@ -98,6 +110,7 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
         probs = _predict_probs(model, test_loader, device)
 
         if tta_transform is not None and tta_count > 0:
+            tta_probs = []
             for _ in range(tta_count):
                 t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
                 t_loader = DataLoader(
@@ -106,8 +119,17 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
                     shuffle=False,
                     num_workers=test_loader.num_workers,
                 )
-                probs += _predict_probs(model, t_loader, device)
-            probs /= (tta_count + 1)
+                tta_probs.append(_predict_probs(model, t_loader, device))
+            
+            # TTA 결과 평균 계산
+            tta_avg = np.mean(tta_probs, axis=0)
+            
+            if tta_add_org:
+                # 원본 이미지 포함하여 평균
+                probs = (probs + tta_avg * tta_count) / (tta_count + 1)
+            else:
+                # 원본 이미지 제외하고 TTA 결과만 사용
+                probs = tta_avg
 
         fold_predictions = probs
         
@@ -189,6 +211,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             device,
             tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
             tta_count=getattr(aug_cfg, "test_tta_count", 0),
+            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
         )
     else:
         aug_cfg = getattr(cfg, "augmentation", {})
@@ -198,6 +221,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             device,
             tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
             tta_count=getattr(aug_cfg, "test_tta_count", 0),
+            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
         )
     
     # 결과 저장

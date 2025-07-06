@@ -65,10 +65,10 @@ training:
     valid_aug_ops: []          # Albumentations/Augraphy ops for validation dataset
     valid_tta_ops: [rotate]    # ops applied for validation TTA
     test_tta_ops: [rotate]     # ops applied for inference TTA
-    train_aug_add_org: true    # add original image to train augmented images
-    valid_aug_add_org: true    # add original image to valid augmented images
-    valid_tta_add_org: true    # add original image to valid tta images
-    test_tta_add_org: true     # add original image to test tta images
+    train_aug_add_org: false    # add original image to train augmented images
+    valid_aug_add_org: false    # add original image to valid augmented images
+    valid_tta_add_org: false    # add original image to valid tta images
+    test_tta_add_org: false     # add original image to test tta images
     
   # Learning rate scheduler configuration
   scheduler:

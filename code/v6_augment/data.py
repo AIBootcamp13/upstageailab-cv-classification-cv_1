@@ -83,12 +83,16 @@ class IndexedImageDataset(Dataset):
 class AugmentedDataset(Dataset):
     """원본 데이터셋을 여러 번 반복하여 증강을 적용하는 래퍼"""
 
-    def __init__(self, base_dataset: Dataset, num_aug: int = 1):
+    def __init__(self, base_dataset: Dataset, num_aug: int = 1, add_org: bool = False):
         self.base_dataset = base_dataset
         self.num_aug = max(0, int(num_aug))
+        self.add_org = add_org
 
     def __len__(self):
-        return len(self.base_dataset) * (self.num_aug + 1)
+        if self.add_org:
+            return len(self.base_dataset) * (self.num_aug + 1)
+        else:
+            return len(self.base_dataset) * self.num_aug
 
     def __getitem__(self, idx):
         base_idx = idx % len(self.base_dataset)
@@ -362,7 +366,7 @@ def prepare_data_loaders(cfg, seed):
             transform=train_transform
         )
         if getattr(aug_cfg, "train_aug_count", 0) > 0:
-            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
+            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -406,7 +410,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
         transform=train_transform
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
 
     val_dataset = IndexedImageDataset(
         val_df,
@@ -414,7 +418,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
         transform=val_transform
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0))
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0), getattr(aug_cfg, "valid_aug_add_org", False))
     
     # DataLoader 정의
     train_loader = DataLoader(
@@ -468,14 +472,14 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
         transform=train_transform
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
     val_dataset = IndexedImageDataset(
         val_df,
         train_images_path,
         transform=val_transform
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0))
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0), getattr(aug_cfg, "valid_aug_add_org", False))
     
     # DataLoader 정의
     train_loader = DataLoader(
