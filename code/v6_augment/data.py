@@ -10,6 +10,7 @@
 import os
 import pandas as pd
 import numpy as np
+import cv2
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader
@@ -183,7 +184,7 @@ def _get_albumentations_ops(intensity: float, img_size: int):
         "blur": A.Blur(blur_limit=3, p=0.2 * intensity),
         "motion_blur": A.MotionBlur(blur_limit=7, p=0.2 * intensity),
         "median_blur": A.MedianBlur(blur_limit=3, p=0.1 * intensity),
-        "downscale": A.Downscale(scale_min=0.7, scale_max=0.95, p=0.2 * intensity),
+        "downscale": A.Downscale(scale_min=0.7, scale_max=0.95, interpolation=cv2.INTER_LINEAR, p=0.2 * intensity),
         "jpeg": A.ImageCompression(quality_lower=60, quality_upper=100, p=0.2 * intensity),
         "sharpen": A.Sharpen(alpha=(0.1, 0.3), lightness=(0.9, 1.1), p=0.2 * intensity),
         "emboss": A.Emboss(alpha=(0.1, 0.3), strength=(0.2, 0.5), p=0.2 * intensity),
