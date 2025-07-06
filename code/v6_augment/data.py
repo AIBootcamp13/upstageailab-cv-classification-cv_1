@@ -17,6 +17,11 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
+import warnings
+
+# numpy matrix 경고 필터링
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*matrix subclass.*")
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning, message=".*matrix subclass.*")
 
 
 def _should_use_pin_memory():
