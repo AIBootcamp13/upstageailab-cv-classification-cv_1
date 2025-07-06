@@ -438,6 +438,7 @@ class TestMixedPrecisionTraining:
         assert 0 <= result['train_acc'] <= 1
         assert 0 <= result['train_f1'] <= 1
     
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="Mixed Precision Training은 CUDA 환경에서만 테스트합니다")
     def test_train_one_epoch_with_mock_scaler(self):
         """Mock scaler로 Mixed Precision Training 테스트"""
         # Mock scaler 생성

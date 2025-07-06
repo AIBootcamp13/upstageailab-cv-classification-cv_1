@@ -273,6 +273,7 @@ class TestSchedulerFunctionality:
         
         # 여러 스텝 실행
         for _ in range(5):
+            self.optimizer.step()  # optimizer.step() 먼저 호출
             scheduler.step()
         
         new_lr = self.optimizer.param_groups[0]['lr']
@@ -287,12 +288,14 @@ class TestSchedulerFunctionality:
         
         # step_size 전까지는 학습률 유지
         for _ in range(2):
+            self.optimizer.step()  # optimizer.step() 먼저 호출
             scheduler.step()
         
         lr_before_step = self.optimizer.param_groups[0]['lr']
         assert lr_before_step == initial_lr
         
         # step_size 도달 시 학습률 감소
+        self.optimizer.step()  # optimizer.step() 먼저 호출
         scheduler.step()
         lr_after_step = self.optimizer.param_groups[0]['lr']
         assert lr_after_step == initial_lr * 0.1
@@ -318,6 +321,7 @@ class TestSchedulerFunctionality:
         
         # 여러 스텝 실행
         for _ in range(3):
+            self.optimizer.step()  # optimizer.step() 먼저 호출
             scheduler.step()
         
         new_lr = self.optimizer.param_groups[0]['lr']
@@ -345,6 +349,9 @@ class TestUpdateScheduler:
         
         initial_lr = self.optimizer.param_groups[0]['lr']
         
+        # optimizer.step() 먼저 호출 (실제 훈련 상황 시뮬레이션)
+        self.optimizer.step()
+        
         # 스케쥴러 업데이트
         result_lr = update_scheduler(scheduler, None, None)
         
@@ -357,6 +364,9 @@ class TestUpdateScheduler:
         scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
         
         initial_lr = self.optimizer.param_groups[0]['lr']
+        
+        # optimizer.step() 먼저 호출 (실제 훈련 상황 시뮬레이션)
+        self.optimizer.step()
         
         # 스케쥴러 업데이트
         result_lr = update_scheduler(scheduler, None, None)
@@ -407,6 +417,9 @@ class TestUpdateScheduler:
         
         initial_lr = self.optimizer.param_groups[0]['lr']
         
+        # optimizer.step() 먼저 호출 (실제 훈련 상황 시뮬레이션)
+        self.optimizer.step()
+        
         # 스케쥴러 업데이트
         result_lr = update_scheduler(scheduler, None, None)
         
@@ -454,6 +467,9 @@ class TestSchedulerIntegration:
         # 여러 에포크 시뮬레이션
         lrs = []
         for epoch in range(5):
+            # optimizer.step() 먼저 호출 (실제 훈련 상황 시뮬레이션)
+            optimizer.step()
+            
             # 스케쥴러 업데이트
             current_lr = update_scheduler(scheduler, None, cfg)
             lrs.append(current_lr)
@@ -542,6 +558,8 @@ class TestSchedulerIntegration:
                 val_metrics = {"val_loss": 1.0}
                 result_lr = update_scheduler(scheduler, val_metrics, cfg)
             else:
+                # optimizer.step() 먼저 호출 (실제 훈련 상황 시뮬레이션)
+                optimizer.step()
                 result_lr = update_scheduler(scheduler, None, cfg)
             
             assert result_lr is not None
