@@ -45,7 +45,7 @@ training:
     # clahe, to_gray, channel_shuffle, invert, gauss_noise, blur, motion_blur,
     # median_blur, downscale, jpeg, sharpen, emboss, piecewise_affine,
     # random_resized_crop, center_crop, random_crop, pad_if_needed,
-    # coarse_dropout, cutout, channel_dropout, fancy_pca, equalize, posterize,
+    # coarse_dropout, channel_dropout, fancy_pca, equalize, posterize,
     # solarize, iso_noise, multiplicative_noise, random_grid_shuffle,
     # random_shadow, random_sunflare, random_fog, random_rain, random_snow,
     # zoom_blur, grid_dropout, gaussian_blur, glass_blur, pixel_dropout
