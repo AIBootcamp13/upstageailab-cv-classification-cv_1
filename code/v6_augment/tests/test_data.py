@@ -149,7 +149,8 @@ class TestTransforms:
             'data': {'img_size': img_size},
             'augmentation': {'method': 'albumentations', 'intensity': 0.5}
         })
-        train_transform, test_transform = get_transforms(cfg)
+        train_transform = get_transforms(cfg, 'train')
+        test_transform = get_transforms(cfg, 'test')
         
         # Transform 객체 확인
         assert train_transform is not None
@@ -270,11 +271,12 @@ class TestDataLoaderPreparation:
         assert kfold_data is not None
         
         # K-Fold 데이터 확인
-        folds, full_train_df, data_path, train_transform, test_transform = kfold_data
+        folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
         assert len(folds) == 3
         assert len(full_train_df) == 60
         assert data_path == self.data_dir
         assert train_transform is not None
+        assert val_transform is not None
         assert test_transform is not None
     
     def test_no_validation_data_loaders(self):
@@ -338,7 +340,8 @@ class TestKFoldLoaders:
             'data': {'img_size': 32},
             'augmentation': {'method': 'albumentations', 'intensity': 0.0}
         })
-        self.train_transform, self.test_transform = get_transforms(cfg)
+        self.train_transform = get_transforms(cfg, 'train')
+        self.val_transform = get_transforms(cfg, 'valid')
         
         # 설정 객체
         self.cfg = OmegaConf.create({
@@ -351,8 +354,13 @@ class TestKFoldLoaders:
         fold_idx = 0
         
         train_loader, val_loader, train_df, val_df = get_kfold_loaders(
-            fold_idx, self.folds, self.full_train_df, self.data_dir, 
-            self.train_transform, self.test_transform, self.cfg
+            fold_idx,
+            self.folds,
+            self.full_train_df,
+            self.data_dir,
+            self.train_transform,
+            self.val_transform,
+            self.cfg,
         )
         
         # 반환값 확인

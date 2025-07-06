@@ -38,6 +38,10 @@ training:
     valid_count: 0             # augmentation copies for validation dataset
     valid_tta: 0               # TTA count during validation
     test_tta: 0                # TTA count during inference
+    train_ops: [all]           # list of albumentations ops or [all]
+    valid_ops: []              # validation dataset augmentation ops
+    valid_tta_ops: [rotate]    # ops applied for validation TTA
+    test_tta_ops: [rotate]     # ops applied for inference TTA
     
   # Learning rate scheduler configuration
   scheduler:

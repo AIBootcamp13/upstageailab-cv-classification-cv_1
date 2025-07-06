@@ -162,7 +162,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg)[0] if getattr(aug_cfg, "test_tta", 0) > 0 else None,
+            tta_transform=get_transforms(cfg, "test_tta") if getattr(aug_cfg, "test_tta", 0) > 0 else None,
             tta_count=getattr(aug_cfg, "test_tta", 0),
         )
     else:
@@ -171,7 +171,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg)[0] if getattr(aug_cfg, "test_tta", 0) > 0 else None,
+            tta_transform=get_transforms(cfg, "test_tta") if getattr(aug_cfg, "test_tta", 0) > 0 else None,
             tta_count=getattr(aug_cfg, "test_tta", 0),
         )
     

@@ -151,74 +151,75 @@ def _create_augraphy_lambda(intensity: float):
 
 
 def _get_albumentations_ops(intensity: float, img_size: int):
-    """Return a rich set of Albumentations transforms"""
+    """Return a dict of Albumentations transforms keyed by name"""
     limit15 = int(15 * intensity)
-    return [
-        A.HorizontalFlip(p=0.5 * intensity),
-        A.VerticalFlip(p=0.5 * intensity),
-        A.RandomRotate90(p=0.5 * intensity),
-        A.Rotate(limit=limit15, p=0.5 * intensity),
-        A.Transpose(p=0.2 * intensity),
-        A.ShiftScaleRotate(
+    return {
+        "horizontal_flip": A.HorizontalFlip(p=0.5 * intensity),
+        "vertical_flip": A.VerticalFlip(p=0.5 * intensity),
+        "random_rotate90": A.RandomRotate90(p=0.5 * intensity),
+        "rotate": A.Rotate(limit=limit15, p=0.5 * intensity),
+        "transpose": A.Transpose(p=0.2 * intensity),
+        "shift_scale_rotate": A.ShiftScaleRotate(
             shift_limit=0.1 * intensity,
             scale_limit=0.2 * intensity,
             rotate_limit=limit15,
             p=0.5 * intensity,
         ),
-        A.OpticalDistortion(distort_limit=0.05 * intensity, shift_limit=0.05 * intensity, p=0.3 * intensity),
-        A.GridDistortion(num_steps=5, distort_limit=0.3 * intensity, p=0.3 * intensity),
-        A.ElasticTransform(alpha=1.0 * intensity, sigma=50 * intensity, alpha_affine=50 * intensity, p=0.3 * intensity),
-        A.Perspective(scale=(0.05 * intensity, 0.1 * intensity), p=0.3 * intensity),
-        A.RandomBrightnessContrast(brightness_limit=0.2 * intensity, contrast_limit=0.2 * intensity, p=0.5 * intensity),
-        A.ColorJitter(brightness=0.2 * intensity, contrast=0.2 * intensity, saturation=0.2 * intensity, hue=0.05 * intensity, p=0.3 * intensity),
-        A.HueSaturationValue(hue_shift_limit=20 * intensity, sat_shift_limit=30 * intensity, val_shift_limit=20 * intensity, p=0.3 * intensity),
-        A.RandomGamma(gamma_limit=(80, 120), p=0.3 * intensity),
-        A.CLAHE(p=0.3 * intensity),
-        A.ToGray(p=0.1 * intensity),
-        A.ChannelShuffle(p=0.05 * intensity),
-        A.InvertImg(p=0.05 * intensity),
-        A.GaussNoise(var_limit=(10 * intensity, 50 * intensity), p=0.3 * intensity),
-        A.Blur(blur_limit=3, p=0.2 * intensity),
-        A.MotionBlur(blur_limit=7, p=0.2 * intensity),
-        A.MedianBlur(blur_limit=3, p=0.1 * intensity),
-        A.Downscale(scale_min=0.7, scale_max=0.95, p=0.2 * intensity),
-        A.JpegCompression(quality_lower=60, quality_upper=100, p=0.2 * intensity),
-        A.Sharpen(alpha=(0.1, 0.3), lightness=(0.9, 1.1), p=0.2 * intensity),
-        A.Emboss(alpha=(0.1, 0.3), strength=(0.2, 0.5), p=0.2 * intensity),
-        A.PiecewiseAffine(scale=(0.01 * intensity, 0.05 * intensity), p=0.2 * intensity),
-    ]
+        "optical_distortion": A.OpticalDistortion(distort_limit=0.05 * intensity, shift_limit=0.05 * intensity, p=0.3 * intensity),
+        "grid_distortion": A.GridDistortion(num_steps=5, distort_limit=0.3 * intensity, p=0.3 * intensity),
+        "elastic_transform": A.ElasticTransform(alpha=1.0 * intensity, sigma=50 * intensity, alpha_affine=50 * intensity, p=0.3 * intensity),
+        "perspective": A.Perspective(scale=(0.05 * intensity, 0.1 * intensity), p=0.3 * intensity),
+        "random_brightness_contrast": A.RandomBrightnessContrast(brightness_limit=0.2 * intensity, contrast_limit=0.2 * intensity, p=0.5 * intensity),
+        "color_jitter": A.ColorJitter(brightness=0.2 * intensity, contrast=0.2 * intensity, saturation=0.2 * intensity, hue=0.05 * intensity, p=0.3 * intensity),
+        "hsv": A.HueSaturationValue(hue_shift_limit=20 * intensity, sat_shift_limit=30 * intensity, val_shift_limit=20 * intensity, p=0.3 * intensity),
+        "random_gamma": A.RandomGamma(gamma_limit=(80, 120), p=0.3 * intensity),
+        "clahe": A.CLAHE(p=0.3 * intensity),
+        "to_gray": A.ToGray(p=0.1 * intensity),
+        "channel_shuffle": A.ChannelShuffle(p=0.05 * intensity),
+        "invert": A.InvertImg(p=0.05 * intensity),
+        "gauss_noise": A.GaussNoise(var_limit=(10 * intensity, 50 * intensity), p=0.3 * intensity),
+        "blur": A.Blur(blur_limit=3, p=0.2 * intensity),
+        "motion_blur": A.MotionBlur(blur_limit=7, p=0.2 * intensity),
+        "median_blur": A.MedianBlur(blur_limit=3, p=0.1 * intensity),
+        "downscale": A.Downscale(scale_min=0.7, scale_max=0.95, p=0.2 * intensity),
+        "jpeg": A.JpegCompression(quality_lower=60, quality_upper=100, p=0.2 * intensity),
+        "sharpen": A.Sharpen(alpha=(0.1, 0.3), lightness=(0.9, 1.1), p=0.2 * intensity),
+        "emboss": A.Emboss(alpha=(0.1, 0.3), strength=(0.2, 0.5), p=0.2 * intensity),
+        "piecewise_affine": A.PiecewiseAffine(scale=(0.01 * intensity, 0.05 * intensity), p=0.2 * intensity),
+    }
 
-def get_transforms(cfg):
-    """이미지 변환을 위한 transform들을 반환"""
+def get_transforms(cfg, split: str = "train"):
+    """Return transforms for a given split"""
     img_size = getattr(getattr(cfg, "data", {}), "img_size", 224)
     aug_cfg = getattr(cfg, "augmentation", {})
     method = getattr(aug_cfg, "method", "none").lower()
     intensity = float(getattr(aug_cfg, "intensity", 0))
 
-    train_ops = []
-    if method in ("albumentations", "mix") and intensity > 0:
-        train_ops.extend(_get_albumentations_ops(intensity, img_size))
+    ops_key = f"{split}_ops"
+    ops_list = aug_cfg.get(ops_key, [])
 
-    if method in ("augraphy", "mix") and intensity > 0:
+    selected = []
+    if method in ("albumentations", "mix") and intensity > 0:
+        ops_dict = _get_albumentations_ops(intensity, img_size)
+        if not ops_list or ops_list == ["all"]:
+            selected.extend(ops_dict.values())
+        else:
+            for name in ops_list:
+                if name in ops_dict:
+                    selected.append(ops_dict[name])
+
+    if method in ("augraphy", "mix") and intensity > 0 and split in ("train", "valid", "valid_tta", "test_tta"):
         augraphy_aug = _create_augraphy_lambda(intensity)
         if augraphy_aug is not None:
-            train_ops.append(augraphy_aug)
+            selected.append(augraphy_aug)
 
-    train_ops.extend([
+    selected.extend([
         A.Resize(height=img_size, width=img_size),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(),
     ])
 
-    train_transform = A.Compose(train_ops)
-
-    test_transform = A.Compose([
-        A.Resize(height=img_size, width=img_size),
-        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ToTensorV2(),
-    ])
-
-    return train_transform, test_transform
+    return A.Compose(selected)
 
 
 def prepare_data_loaders(cfg, seed):
@@ -229,7 +230,9 @@ def prepare_data_loaders(cfg, seed):
     num_workers = cfg.data.num_workers
 
     # Transform 준비
-    train_transform, test_transform = get_transforms(cfg)
+    train_transform = get_transforms(cfg, "train")
+    val_transform = get_transforms(cfg, "valid")
+    test_transform = get_transforms(cfg, "test")
     
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(f"{data_path}/train.csv")
@@ -256,13 +259,25 @@ def prepare_data_loaders(cfg, seed):
     
     if validation_strategy == "holdout":
         train_loader, val_loader = _prepare_holdout_loaders(
-            cfg, full_train_df, data_path, train_transform, test_transform, seed
+            cfg,
+            full_train_df,
+            data_path,
+            train_transform,
+            val_transform,
+            seed,
         )
         return train_loader, val_loader, test_loader, None
         
     elif validation_strategy == "kfold":
         folds = _prepare_kfold_splits(cfg, full_train_df, seed)
-        return None, None, test_loader, (folds, full_train_df, data_path, train_transform, test_transform)
+        return None, None, test_loader, (
+            folds,
+            full_train_df,
+            data_path,
+            train_transform,
+            val_transform,
+            test_transform,
+        )
         
     elif validation_strategy == "none":
         train_dataset = IndexedImageDataset(
@@ -286,7 +301,7 @@ def prepare_data_loaders(cfg, seed):
         raise ValueError(f"Unknown validation strategy: {validation_strategy}")
 
 
-def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, test_transform, seed):
+def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val_transform, seed):
     """Holdout 검증을 위한 데이터 로더 준비"""
     train_ratio = cfg.validation.holdout.train_ratio
     stratify = cfg.validation.holdout.stratify
@@ -320,7 +335,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, tes
     val_dataset = IndexedImageDataset(
         val_df,
         f"{data_path}/train/",
-        transform=test_transform
+        transform=val_transform
     )
     if getattr(aug_cfg, "valid_count", 0) > 0:
         val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))
@@ -360,7 +375,7 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
     return folds
 
 
-def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform, test_transform, cfg):
+def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform, val_transform, cfg):
     """특정 fold에 대한 데이터 로더 반환"""
     train_idx, val_idx = folds[fold_idx]
 
@@ -381,7 +396,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform
     val_dataset = IndexedImageDataset(
         val_df,
         f"{data_path}/train/",
-        transform=test_transform
+        transform=val_transform
     )
     if getattr(aug_cfg, "valid_count", 0) > 0:
         val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))

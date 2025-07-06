@@ -218,7 +218,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
 
     aug_cfg = getattr(cfg, "augmentation", {})
     # TTA transform 준비
-    train_transform, _ = get_transforms(cfg)
+    train_transform = get_transforms(cfg, "train")
     
     log.info("학습 시작")
     
@@ -238,7 +238,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=train_transform if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
+                tta_transform=get_transforms(cfg, "valid_tta") if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
                 tta_count=getattr(aug_cfg, "valid_tta", 0),
             )
             ret.update(val_ret)
@@ -343,7 +343,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
 
 def train_kfold_models(cfg, kfold_data, device):
     """K-Fold 교차 검증 학습"""
-    folds, full_train_df, data_path, train_transform, test_transform = kfold_data
+    folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
     n_splits = len(folds)
     models = []
     aug_cfg = getattr(cfg, "augmentation", {})
@@ -353,7 +353,13 @@ def train_kfold_models(cfg, kfold_data, device):
         
         # 현재 fold의 데이터 로더 준비
         train_loader, val_loader, train_df, val_df = get_kfold_loaders(
-            fold_idx, folds, full_train_df, data_path, train_transform, test_transform, cfg
+            fold_idx,
+            folds,
+            full_train_df,
+            data_path,
+            train_transform,
+            val_transform,
+            cfg,
         )
         
         # 모델 초기화
@@ -397,7 +403,7 @@ def train_kfold_models(cfg, kfold_data, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=train_transform if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
+                tta_transform=get_transforms(cfg, "valid_tta") if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
                 tta_count=getattr(aug_cfg, "valid_tta", 0),
             )
             
