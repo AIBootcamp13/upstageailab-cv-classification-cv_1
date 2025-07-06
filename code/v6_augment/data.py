@@ -83,10 +83,12 @@ class IndexedImageDataset(Dataset):
 class AugmentedDataset(Dataset):
     """원본 데이터셋을 여러 번 반복하여 증강을 적용하는 래퍼"""
 
-    def __init__(self, base_dataset: Dataset, num_aug: int = 1, add_org: bool = False):
+    def __init__(self, base_dataset, num_aug: int = 1, add_org: bool = False, aug_transform=None, org_transform=None):
         self.base_dataset = base_dataset
         self.num_aug = max(0, int(num_aug))
         self.add_org = add_org
+        self.aug_transform = aug_transform  # 증강 transform
+        self.org_transform = org_transform  # 원본 transform (기본 transform)
 
     def __len__(self):
         if self.add_org:
@@ -96,7 +98,26 @@ class AugmentedDataset(Dataset):
 
     def __getitem__(self, idx):
         base_idx = idx % len(self.base_dataset)
-        return self.base_dataset[base_idx]
+        aug_idx = idx // len(self.base_dataset)
+        
+        # base_dataset에서 원본 이미지 로드 (transform 없이)
+        original_image, target = self.base_dataset[base_idx]
+        
+        # 원본 이미지 처리 (마지막 패스)
+        if self.add_org and aug_idx == self.num_aug:
+            if self.org_transform:
+                image = self.org_transform(image=original_image)['image']
+            else:
+                image = original_image
+            return image, target, base_idx
+        
+        # 증강 이미지 처리
+        if self.aug_transform:
+            image = self.aug_transform(image=original_image)['image']
+        else:
+            image = original_image
+        
+        return image, target, base_idx
 
 
 def _create_augraphy_lambda(intensity: float, ops: list[str] | None = None):
@@ -314,6 +335,9 @@ def prepare_data_loaders(cfg, seed):
     val_transform = get_transforms(cfg, "valid_aug_ops")
     test_transform = get_transforms(cfg, None)  # Basic transforms only (no augmentation)
     
+    # 원본 이미지용 transform (증강 없음)
+    org_transform = get_transforms(cfg, None)  # Basic transforms only
+    
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(train_csv_path)
     
@@ -345,6 +369,7 @@ def prepare_data_loaders(cfg, seed):
             train_transform,
             val_transform,
             seed,
+            org_transform
         )
         return train_loader, val_loader, test_loader, None
         
@@ -363,10 +388,24 @@ def prepare_data_loaders(cfg, seed):
         train_dataset = IndexedImageDataset(
             full_train_df,
             train_images_path,
-            transform=train_transform
+            transform=None  # transform 없이 생성
         )
         if getattr(aug_cfg, "train_aug_count", 0) > 0:
-            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
+            train_dataset = AugmentedDataset(
+                train_dataset, 
+                getattr(aug_cfg, "train_aug_count", 0), 
+                getattr(aug_cfg, "train_aug_add_org", False), 
+                aug_transform=train_transform,  # 증강 transform
+                org_transform=org_transform     # 원본 transform
+            )
+        else:
+            # 증강이 없는 경우 기본 transform 적용
+            train_dataset = IndexedImageDataset(
+                full_train_df,
+                train_images_path,
+                transform=train_transform
+            )
+
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -381,7 +420,7 @@ def prepare_data_loaders(cfg, seed):
         raise ValueError(f"Unknown validation strategy: {validation_strategy}")
 
 
-def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transform, val_transform, seed):
+def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transform, val_transform, seed, org_transform):
     """Holdout 검증을 위한 데이터 로더 준비"""
     train_ratio = cfg.validation.holdout.train_ratio
     stratify = cfg.validation.holdout.stratify
@@ -407,18 +446,44 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
     train_dataset = IndexedImageDataset(
         train_df,
         train_images_path,
-        transform=train_transform
+        transform=None  # transform 없이 생성
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
+        train_dataset = AugmentedDataset(
+            train_dataset, 
+            getattr(aug_cfg, "train_aug_count", 0), 
+            getattr(aug_cfg, "train_aug_add_org", False), 
+            aug_transform=train_transform,  # 증강 transform
+            org_transform=org_transform     # 원본 transform
+        )
+    else:
+        # 증강이 없는 경우 기본 transform 적용
+        train_dataset = IndexedImageDataset(
+            train_df,
+            train_images_path,
+            transform=train_transform
+        )
 
     val_dataset = IndexedImageDataset(
         val_df,
         train_images_path,
-        transform=val_transform
+        transform=None  # transform 없이 생성
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0), getattr(aug_cfg, "valid_aug_add_org", False))
+        val_dataset = AugmentedDataset(
+            val_dataset, 
+            getattr(aug_cfg, "valid_aug_count", 0), 
+            getattr(aug_cfg, "valid_aug_add_org", False), 
+            aug_transform=val_transform,    # 증강 transform
+            org_transform=org_transform     # 원본 transform
+        )
+    else:
+        # 증강이 없는 경우 기본 transform 적용
+        val_dataset = IndexedImageDataset(
+            val_df,
+            train_images_path,
+            transform=val_transform
+        )
     
     # DataLoader 정의
     train_loader = DataLoader(
@@ -461,6 +526,9 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
 
     aug_cfg = getattr(cfg, "augmentation", {})
     
+    # 원본 이미지용 transform (증강 없음)
+    org_transform = get_transforms(cfg, None)  # Basic transforms only
+    
     # 현재 fold의 데이터 분할
     train_df = full_train_df.iloc[train_idx]
     val_df = full_train_df.iloc[val_idx]
@@ -469,17 +537,44 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
     train_dataset = IndexedImageDataset(
         train_df,
         train_images_path,
-        transform=train_transform
+        transform=None  # transform 없이 생성
     )
     if getattr(aug_cfg, "train_aug_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0), getattr(aug_cfg, "train_aug_add_org", False))
+        train_dataset = AugmentedDataset(
+            train_dataset, 
+            getattr(aug_cfg, "train_aug_count", 0), 
+            getattr(aug_cfg, "train_aug_add_org", False), 
+            aug_transform=train_transform,  # 증강 transform
+            org_transform=org_transform     # 원본 transform
+        )
+    else:
+        # 증강이 없는 경우 기본 transform 적용
+        train_dataset = IndexedImageDataset(
+            train_df,
+            train_images_path,
+            transform=train_transform
+        )
+
     val_dataset = IndexedImageDataset(
         val_df,
         train_images_path,
-        transform=val_transform
+        transform=None  # transform 없이 생성
     )
     if getattr(aug_cfg, "valid_aug_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0), getattr(aug_cfg, "valid_aug_add_org", False))
+        val_dataset = AugmentedDataset(
+            val_dataset, 
+            getattr(aug_cfg, "valid_aug_count", 0), 
+            getattr(aug_cfg, "valid_aug_add_org", False), 
+            aug_transform=val_transform,    # 증강 transform
+            org_transform=org_transform     # 원본 transform
+        )
+    else:
+        # 증강이 없는 경우 기본 transform 적용
+        val_dataset = IndexedImageDataset(
+            val_df,
+            train_images_path,
+            transform=val_transform
+        )
     
     # DataLoader 정의
     train_loader = DataLoader(
