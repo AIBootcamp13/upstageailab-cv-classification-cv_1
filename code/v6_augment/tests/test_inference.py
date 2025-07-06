@@ -310,7 +310,11 @@ class TestRunInference:
         )
         
         # 함수 호출 확인
-        mock_predict.assert_called_once_with(self.model, self.test_loader, self.device)
+        assert mock_predict.call_count == 1
+        args, kwargs = mock_predict.call_args
+        assert args[0] is self.model
+        assert args[1] is self.test_loader
+        assert args[2] == self.device
         mock_save.assert_called_once()
         
         # 반환값 확인
@@ -336,7 +340,11 @@ class TestRunInference:
         )
         
         # 함수 호출 확인
-        mock_predict.assert_called_once_with(models, self.test_loader, self.device)
+        assert mock_predict.call_count == 1
+        args, kwargs = mock_predict.call_args
+        assert args[0] == models
+        assert args[1] is self.test_loader
+        assert args[2] == self.device
         mock_save.assert_called_once()
         
         # 반환값 확인

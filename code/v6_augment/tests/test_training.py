@@ -356,10 +356,10 @@ class TestTrainingIntegration:
         """학습 결과의 일관성 테스트"""
         # 동일한 시드로 두 번 학습
         torch.manual_seed(42)
-        model1, optimizer1, loss_fn1 = setup_model_and_optimizer(self.cfg, self.device)
+        model1, optimizer1, loss_fn1, _ = setup_model_and_optimizer(self.cfg, self.device)
         
         torch.manual_seed(42)
-        model2, optimizer2, loss_fn2 = setup_model_and_optimizer(self.cfg, self.device)
+        model2, optimizer2, loss_fn2, _ = setup_model_and_optimizer(self.cfg, self.device)
         
         # 더미 데이터
         torch.manual_seed(42)
@@ -381,7 +381,7 @@ class TestTrainingIntegration:
     
     def test_loss_decreases_over_epochs(self):
         """에포크에 따른 손실 감소 테스트"""
-        model, optimizer, loss_fn = setup_model_and_optimizer(self.cfg, self.device)
+        model, optimizer, loss_fn, _ = setup_model_and_optimizer(self.cfg, self.device)
         
         # 더미 데이터 (쉬운 패턴)
         images = torch.randn(16, 3, 224, 224)

@@ -74,16 +74,17 @@ def main(cfg: DictConfig) -> None:
         log.info("K-Fold 교차 검증 학습 완료")
         
         # wandb 아티팩트 등록 (K-Fold)
-        if cfg.model_save.enabled and cfg.model_save.wandb_artifact:
+        model_save_cfg = getattr(cfg, "model_save", {})
+        if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
             for fold_idx in range(len(models)):
                 # 각 fold의 best 모델 등록
-                if cfg.model_save.save_best:
+                if model_save_cfg.get("save_best", False):
                     best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
                     metadata = {"fold": fold_idx + 1, "type": "best"}
                     save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
                 
                 # 각 fold의 last 모델 등록
-                if cfg.model_save.save_last:
+                if model_save_cfg.get("save_last", False):
                     last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
                     metadata = {"fold": fold_idx + 1, "type": "last"}
                     save_model_as_artifact(last_model_path, cfg, f"last_fold{fold_idx + 1}", metadata)
@@ -93,15 +94,16 @@ def main(cfg: DictConfig) -> None:
         log.info("단일 모델 학습 완료")
         
         # wandb 아티팩트 등록 (단일 모델)
-        if cfg.model_save.enabled and cfg.model_save.wandb_artifact:
+        model_save_cfg = getattr(cfg, "model_save", {})
+        if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
             # best 모델 등록
-            if cfg.model_save.save_best:
+            if model_save_cfg.get("save_best", False):
                 best_model_path = get_model_save_path(cfg, "best")
                 metadata = {"type": "best"}
                 save_model_as_artifact(best_model_path, cfg, "best", metadata)
             
             # last 모델 등록
-            if cfg.model_save.save_last:
+            if model_save_cfg.get("save_last", False):
                 last_model_path = get_model_save_path(cfg, "last")
                 metadata = {"type": "last"}
                 save_model_as_artifact(last_model_path, cfg, "last", metadata)

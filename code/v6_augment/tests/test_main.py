@@ -349,7 +349,7 @@ class TestModuleIntegration:
         device = get_device(self.cfg)
         
         # 모델 및 옵티마이저 설정
-        model, optimizer, loss_fn = setup_model_and_optimizer(self.cfg, device)
+        model, optimizer, loss_fn, _ = setup_model_and_optimizer(self.cfg, device)
         
         # 학습 실행
         trained_model = train_single_model(self.cfg, train_loader, val_loader, device)

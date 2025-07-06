@@ -74,16 +74,67 @@ class AugmentedDataset(Dataset):
 def _create_augraphy_lambda(intensity: float):
     """A.Lambda wrapper for simple Augraphy-like effects"""
     try:
-        from augraphy import AugraphyPipeline, Geometric, Brightness, Blur, Noise
+        from augraphy import AugraphyPipeline
+        from augraphy.augmentations import (
+            BadPhotoCopy,
+            BindingsAndFasteners,
+            BleedThrough,
+            BookBinding,
+            Brightness,
+            BrightnessTexturize,
+            ColorPaper,
+            ColorShift,
+            Dithering,
+            DirtyDrum,
+            DirtyRollers,
+            Geometric,
+            InkBleed,
+            InkColorSwap,
+            InkMottling,
+            InkShifter,
+            Jpeg,
+            LightingGradient,
+            LinesDegradation,
+            LowInkPeriodicLines,
+            LowInkRandomLines,
+            Markup,
+            NoiseTexturize,
+            PageBorder,
+            Scribbles,
+            ShadowCast,
+            Stains,
+            SubtleNoise,
+        )
 
         pipeline = AugraphyPipeline(
-            ink_phase=[],
-            paper_phase=[],
+            ink_phase=[
+                InkBleed(p=0.2 * intensity),
+                InkMottling(p=0.2 * intensity),
+                InkShifter(p=0.2 * intensity),
+                LowInkRandomLines(p=0.2 * intensity),
+                LowInkPeriodicLines(p=0.2 * intensity),
+            ],
+            paper_phase=[
+                ColorPaper(p=0.3 * intensity),
+                BrightnessTexturize(p=0.3 * intensity),
+                DirtyRollers(p=0.2 * intensity),
+                DirtyDrum(p=0.2 * intensity),
+                Stains(p=0.3 * intensity),
+                PageBorder(p=0.2 * intensity),
+            ],
             post_phase=[
                 Geometric(rotate_range=(-15 * intensity, 15 * intensity), p=0.5 * intensity),
+                LightingGradient(p=0.3 * intensity),
                 Brightness(brightness_range=(1 - 0.3 * intensity, 1 + 0.3 * intensity), p=0.5 * intensity),
-                Blur(blur_value=(1, 3), p=0.2 * intensity),
-                Noise(noise_type="gauss", noise_value=(0, 10 * intensity), p=0.3 * intensity),
+                ColorShift(p=0.3 * intensity),
+                NoiseTexturize(p=0.3 * intensity),
+                SubtleNoise(p=0.3 * intensity),
+                ShadowCast(p=0.2 * intensity),
+                LinesDegradation(p=0.2 * intensity),
+                BleedThrough(p=0.1 * intensity),
+                Markup(p=0.1 * intensity),
+                Scribbles(p=0.1 * intensity),
+                Jpeg(p=0.2 * intensity),
             ],
         )
 
@@ -99,25 +150,54 @@ def _create_augraphy_lambda(intensity: float):
         return None
 
 
+def _get_albumentations_ops(intensity: float, img_size: int):
+    """Return a rich set of Albumentations transforms"""
+    limit15 = int(15 * intensity)
+    return [
+        A.HorizontalFlip(p=0.5 * intensity),
+        A.VerticalFlip(p=0.5 * intensity),
+        A.RandomRotate90(p=0.5 * intensity),
+        A.Rotate(limit=limit15, p=0.5 * intensity),
+        A.Transpose(p=0.2 * intensity),
+        A.ShiftScaleRotate(
+            shift_limit=0.1 * intensity,
+            scale_limit=0.2 * intensity,
+            rotate_limit=limit15,
+            p=0.5 * intensity,
+        ),
+        A.OpticalDistortion(distort_limit=0.05 * intensity, shift_limit=0.05 * intensity, p=0.3 * intensity),
+        A.GridDistortion(num_steps=5, distort_limit=0.3 * intensity, p=0.3 * intensity),
+        A.ElasticTransform(alpha=1.0 * intensity, sigma=50 * intensity, alpha_affine=50 * intensity, p=0.3 * intensity),
+        A.Perspective(scale=(0.05 * intensity, 0.1 * intensity), p=0.3 * intensity),
+        A.RandomBrightnessContrast(brightness_limit=0.2 * intensity, contrast_limit=0.2 * intensity, p=0.5 * intensity),
+        A.ColorJitter(brightness=0.2 * intensity, contrast=0.2 * intensity, saturation=0.2 * intensity, hue=0.05 * intensity, p=0.3 * intensity),
+        A.HueSaturationValue(hue_shift_limit=20 * intensity, sat_shift_limit=30 * intensity, val_shift_limit=20 * intensity, p=0.3 * intensity),
+        A.RandomGamma(gamma_limit=(80, 120), p=0.3 * intensity),
+        A.CLAHE(p=0.3 * intensity),
+        A.ToGray(p=0.1 * intensity),
+        A.ChannelShuffle(p=0.05 * intensity),
+        A.InvertImg(p=0.05 * intensity),
+        A.GaussNoise(var_limit=(10 * intensity, 50 * intensity), p=0.3 * intensity),
+        A.Blur(blur_limit=3, p=0.2 * intensity),
+        A.MotionBlur(blur_limit=7, p=0.2 * intensity),
+        A.MedianBlur(blur_limit=3, p=0.1 * intensity),
+        A.Downscale(scale_min=0.7, scale_max=0.95, p=0.2 * intensity),
+        A.JpegCompression(quality_lower=60, quality_upper=100, p=0.2 * intensity),
+        A.Sharpen(alpha=(0.1, 0.3), lightness=(0.9, 1.1), p=0.2 * intensity),
+        A.Emboss(alpha=(0.1, 0.3), strength=(0.2, 0.5), p=0.2 * intensity),
+        A.PiecewiseAffine(scale=(0.01 * intensity, 0.05 * intensity), p=0.2 * intensity),
+    ]
+
 def get_transforms(cfg):
     """이미지 변환을 위한 transform들을 반환"""
-    img_size = cfg.data.img_size
+    img_size = getattr(getattr(cfg, "data", {}), "img_size", 224)
     aug_cfg = getattr(cfg, "augmentation", {})
     method = getattr(aug_cfg, "method", "none").lower()
     intensity = float(getattr(aug_cfg, "intensity", 0))
 
     train_ops = []
     if method in ("albumentations", "mix") and intensity > 0:
-        train_ops.extend([
-            A.HorizontalFlip(p=0.5 * intensity),
-            A.Rotate(limit=int(15 * intensity), p=0.5 * intensity),
-            A.RandomBrightnessContrast(
-                brightness_limit=0.2 * intensity,
-                contrast_limit=0.2 * intensity,
-                p=0.5 * intensity,
-            ),
-            A.Blur(blur_limit=3, p=0.2 * intensity),
-        ])
+        train_ops.extend(_get_albumentations_ops(intensity, img_size))
 
     if method in ("augraphy", "mix") and intensity > 0:
         augraphy_aug = _create_augraphy_lambda(intensity)
@@ -212,6 +292,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, tes
     stratify = cfg.validation.holdout.stratify
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
+    aug_cfg = getattr(cfg, "augmentation", {})
     
     if stratify:
         train_df, val_df = train_test_split(
@@ -282,6 +363,8 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
 def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform, test_transform, cfg):
     """특정 fold에 대한 데이터 로더 반환"""
     train_idx, val_idx = folds[fold_idx]
+
+    aug_cfg = getattr(cfg, "augmentation", {})
     
     # 현재 fold의 데이터 분할
     train_df = full_train_df.iloc[train_idx]

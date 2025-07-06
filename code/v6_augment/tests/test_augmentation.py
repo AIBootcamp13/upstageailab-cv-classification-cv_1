@@ -12,6 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data import ImageDataset, AugmentedDataset, get_transforms
 from inference import predict_single_model
+import pytest
+import albumentations as A
 
 
 def test_augmented_dataset_len():
@@ -40,3 +42,18 @@ def test_predict_single_model_tta():
     model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(32*32*3, 2))
     preds = predict_single_model(model, loader, torch.device('cpu'), tta_transform=train_t, tta_count=1)
     assert len(preds) == len(dataset)
+
+
+def test_get_transforms_many_ops():
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
+    train_t, _ = get_transforms(cfg)
+    assert len(train_t.transforms) > 10
+
+
+def test_get_transforms_augraphy_lambda():
+    import importlib
+    if importlib.util.find_spec('augraphy') is None:
+        pytest.skip('augraphy not installed')
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'augraphy', 'intensity': 1.0}})
+    train_t, _ = get_transforms(cfg)
+    assert any(isinstance(t, A.Lambda) for t in train_t.transforms)

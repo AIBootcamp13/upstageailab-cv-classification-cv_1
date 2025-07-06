@@ -197,12 +197,13 @@ def train_single_model(cfg, train_loader, val_loader, device):
     
     # Mixed Precision Training 설정
     scaler = None
-    if cfg.training.mixed_precision.enabled and AMP_AVAILABLE and device.type == 'cuda':
+    mp_cfg = getattr(cfg.training, "mixed_precision", {"enabled": False})
+    if mp_cfg.get("enabled", False) and AMP_AVAILABLE and device.type == "cuda":
         scaler = GradScaler()
         log.info("Mixed Precision Training 활성화")
-    elif cfg.training.mixed_precision.enabled and not AMP_AVAILABLE:
+    elif mp_cfg.get("enabled", False) and not AMP_AVAILABLE:
         log.warning("Mixed Precision Training이 요청되었지만 PyTorch AMP가 사용 불가능합니다")
-    elif cfg.training.mixed_precision.enabled and device.type != 'cuda':
+    elif mp_cfg.get("enabled", False) and device.type != "cuda":
         log.warning("Mixed Precision Training은 CUDA 환경에서만 지원됩니다")
     
     # Early stopping 초기화
@@ -276,7 +277,8 @@ def train_single_model(cfg, train_loader, val_loader, device):
                 best_epoch = epoch + 1
                 
                 # 최고 성능 모델 저장
-                if cfg.model_save.enabled and cfg.model_save.save_best:
+                model_save_cfg = getattr(cfg, "model_save", {})
+                if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
                     best_model_path = get_model_save_path(cfg, "best")
                     metadata = {
                         "epoch": best_epoch,
@@ -318,7 +320,8 @@ def train_single_model(cfg, train_loader, val_loader, device):
                 break
     
     # 마지막 에포크 모델 저장
-    if cfg.model_save.enabled and cfg.model_save.save_last:
+    model_save_cfg = getattr(cfg, "model_save", {})
+    if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_last", False):
         last_model_path = get_model_save_path(cfg, "last")
         metadata = {
             "epoch": epoch + 1,
@@ -358,13 +361,14 @@ def train_kfold_models(cfg, kfold_data, device):
         
         # Mixed Precision Training 설정 (fold별로 설정)
         scaler = None
-        if cfg.training.mixed_precision.enabled and AMP_AVAILABLE and device.type == 'cuda':
+        mp_cfg = getattr(cfg.training, "mixed_precision", {"enabled": False})
+        if mp_cfg.get("enabled", False) and AMP_AVAILABLE and device.type == "cuda":
             scaler = GradScaler()
-            if fold_idx == 0:  # 첫 번째 fold에서만 로그 출력
+            if fold_idx == 0:
                 log.info("Mixed Precision Training 활성화")
-        elif cfg.training.mixed_precision.enabled and not AMP_AVAILABLE and fold_idx == 0:
+        elif mp_cfg.get("enabled", False) and not AMP_AVAILABLE and fold_idx == 0:
             log.warning("Mixed Precision Training이 요청되었지만 PyTorch AMP가 사용 불가능합니다")
-        elif cfg.training.mixed_precision.enabled and device.type != 'cuda' and fold_idx == 0:
+        elif mp_cfg.get("enabled", False) and device.type != "cuda" and fold_idx == 0:
             log.warning("Mixed Precision Training은 CUDA 환경에서만 지원됩니다")
         
         log.info(f"Fold {fold_idx + 1} 모델 로드 완료 - 훈련: {len(train_df)}개, 검증: {len(val_df)}개")
@@ -435,7 +439,8 @@ def train_kfold_models(cfg, kfold_data, device):
                 best_epoch = epoch + 1
                 
                 # 최고 성능 모델 저장
-                if cfg.model_save.enabled and cfg.model_save.save_best:
+                model_save_cfg = getattr(cfg, "model_save", {})
+                if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
                     best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
                     metadata = {
                         "fold": fold_idx + 1,
@@ -454,7 +459,8 @@ def train_kfold_models(cfg, kfold_data, device):
                     break
         
         # 마지막 에포크 모델 저장
-        if cfg.model_save.enabled and cfg.model_save.save_last:
+        model_save_cfg = getattr(cfg, "model_save", {})
+        if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_last", False):
             last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
             metadata = {
                 "fold": fold_idx + 1,
