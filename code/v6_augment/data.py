@@ -85,6 +85,12 @@ class AugmentedDataset(Dataset):
 
     def __init__(self, base_dataset, num_aug: int = 1, add_org: bool = False,
                  aug_transform=None, org_transform=None):
+        # transform 매개변수들이 None인 경우 명시적으로 오류 발생
+        if aug_transform is None:
+            raise ValueError("aug_transform cannot be None. Please provide a valid transformation.")
+        if org_transform is None:
+            raise ValueError("org_transform cannot be None. Please provide a valid transformation.")
+            
         self.base_dataset = base_dataset
         self.num_aug = max(0, int(num_aug))
         self.add_org = add_org
@@ -106,18 +112,11 @@ class AugmentedDataset(Dataset):
 
         # 원본 이미지 처리 (마지막 패스)
         if self.add_org and aug_idx == self.num_aug:
-            if self.org_transform:
-                image = self.org_transform(image=original_image)['image']
-            else:
-                image = original_image
+            image = self.org_transform(image=original_image)['image']
             return image, target, base_idx
 
         # 증강 이미지 처리
-        if self.aug_transform:
-            image = self.aug_transform(image=original_image)['image']
-        else:
-            image = original_image
-
+        image = self.aug_transform(image=original_image)['image']
         return image, target, base_idx
 
 
@@ -285,10 +284,10 @@ def _get_albumentations_ops(intensity: float, img_size: int):
 
 def get_transforms(cfg, ops_key: str | None):
     """Return transforms for a given ops_key
-
+    
     Args:
         cfg: Configuration object
-        ops_key: Key for augmentation ops. If None,
+        ops_key: Key for augmentation ops. If None, 
                 returns basic transforms only (resize, normalize, totensor)
     """
     aug_cfg = getattr(cfg, "augmentation", {})
@@ -332,7 +331,7 @@ def prepare_data_loaders(cfg, seed):
     test_images_path = cfg.data.test_images_path
     train_csv_path = cfg.data.train_csv_path
     test_csv_path = cfg.data.test_csv_path
-
+    
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
 
@@ -343,10 +342,10 @@ def prepare_data_loaders(cfg, seed):
 
     # 원본 이미지용 transform (증강 없음)
     org_transform = get_transforms(cfg, None)  # Basic transforms only
-
+    
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(train_csv_path)
-
+    
     # 테스트 데이터 로더 준비
     test_dataset = ImageDataset(
         test_csv_path,
@@ -360,13 +359,13 @@ def prepare_data_loaders(cfg, seed):
         num_workers=0,
         pin_memory=_should_use_pin_memory()
     )
-
+    
     # augmentation 설정
     aug_cfg = getattr(cfg, "augmentation", {})
 
     # 검증 전략에 따른 데이터 분할
     validation_strategy = cfg.validation.strategy
-
+    
     if validation_strategy == "holdout":
         train_loader, val_loader = _prepare_holdout_loaders(
             cfg,
@@ -378,7 +377,7 @@ def prepare_data_loaders(cfg, seed):
             org_transform
         )
         return train_loader, val_loader, test_loader, None
-
+        
     elif validation_strategy == "kfold":
         folds = _prepare_kfold_splits(cfg, full_train_df, seed)
         return None, None, test_loader, (
@@ -389,7 +388,7 @@ def prepare_data_loaders(cfg, seed):
             val_transform,
             test_transform,
         )
-
+        
     elif validation_strategy == "none":
         train_dataset = IndexedImageDataset(
             full_train_df,
@@ -417,11 +416,11 @@ def prepare_data_loaders(cfg, seed):
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_workers,
-            pin_memory=_should_use_pin_memory(),
+            pin_memory=_should_use_pin_memory(), 
             drop_last=False
         )
         return train_loader, None, test_loader, None
-
+        
     else:
         raise ValueError(f"Unknown validation strategy: {validation_strategy}")
 
@@ -435,21 +434,21 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path,
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
     aug_cfg = getattr(cfg, "augmentation", {})
-
+    
     if stratify:
         train_df, val_df = train_test_split(
-            full_train_df,
-            test_size=1-train_ratio,
-            stratify=full_train_df['target'],
+            full_train_df, 
+            test_size=1-train_ratio, 
+            stratify=full_train_df['target'], 
             random_state=seed
         )
     else:
         train_df, val_df = train_test_split(
-            full_train_df,
-            test_size=1-train_ratio,
+            full_train_df, 
+            test_size=1-train_ratio, 
             random_state=seed
         )
-
+    
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
@@ -492,24 +491,24 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path,
             train_images_path,
             transform=val_transform
         )
-
+    
     # DataLoader 정의
     train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=_should_use_pin_memory(),
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        num_workers=num_workers, 
+        pin_memory=_should_use_pin_memory(), 
         drop_last=False
     )
     val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
+        val_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        num_workers=num_workers, 
         pin_memory=_should_use_pin_memory()
     )
-
+    
     return train_loader, val_loader
 
 
@@ -517,7 +516,7 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
     """K-Fold 교차 검증을 위한 분할 준비"""
     n_splits = cfg.validation.kfold.n_splits
     stratify = cfg.validation.kfold.stratify
-
+    
     if stratify:
         skf = StratifiedKFold(n_splits=n_splits, shuffle=True,
                               random_state=seed)
@@ -525,7 +524,7 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
     else:
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=seed)
         folds = list(kf.split(full_train_df))
-
+    
     return folds
 
 
@@ -538,11 +537,11 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
 
     # 원본 이미지용 transform (증강 없음)
     org_transform = get_transforms(cfg, None)  # Basic transforms only
-
+    
     # 현재 fold의 데이터 분할
     train_df = full_train_df.iloc[train_idx]
     val_df = full_train_df.iloc[val_idx]
-
+    
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
@@ -585,22 +584,22 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
             train_images_path,
             transform=val_transform
         )
-
+    
     # DataLoader 정의
     train_loader = DataLoader(
-        train_dataset,
-        batch_size=cfg.training.batch_size,
-        shuffle=True,
-        num_workers=cfg.data.num_workers,
-        pin_memory=_should_use_pin_memory(),
+        train_dataset, 
+        batch_size=cfg.training.batch_size, 
+        shuffle=True, 
+        num_workers=cfg.data.num_workers, 
+        pin_memory=_should_use_pin_memory(), 
         drop_last=False
     )
     val_loader = DataLoader(
-        val_dataset,
-        batch_size=cfg.training.batch_size,
-        shuffle=False,
-        num_workers=cfg.data.num_workers,
+        val_dataset, 
+        batch_size=cfg.training.batch_size, 
+        shuffle=False, 
+        num_workers=cfg.data.num_workers, 
         pin_memory=_should_use_pin_memory()
     )
-
-    return train_loader, val_loader, train_df, val_df
+    
+    return train_loader, val_loader, train_df, val_df 

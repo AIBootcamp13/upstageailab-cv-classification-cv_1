@@ -7,13 +7,14 @@ from PIL import Image
 import torch
 from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data import ImageDataset, AugmentedDataset, get_transforms
 from inference import predict_single_model
 import pytest
-import albumentations as A
 
 
 def test_augmented_dataset_len():
@@ -24,7 +25,12 @@ def test_augmented_dataset_len():
     for name in df['ID']:
         Image.new('RGB', (10, 10), color='white').save(os.path.join(img_dir, name))
     dataset = ImageDataset(df, img_dir)
-    aug = AugmentedDataset(dataset, num_aug=2)
+    
+    # transform 생성
+    aug_transform = A.Compose([A.Resize(10, 10), A.Normalize(), ToTensorV2()])
+    org_transform = A.Compose([A.Resize(10, 10), A.Normalize(), ToTensorV2()])
+    
+    aug = AugmentedDataset(dataset, num_aug=2, aug_transform=aug_transform, org_transform=org_transform)
     # 기본값이 add_org=False이므로 원본 이미지가 포함되지 않음
     assert len(aug) == len(dataset) * 2
 
@@ -39,12 +45,16 @@ def test_augmented_dataset_add_org():
         Image.new('RGB', (10, 10), color='white').save(os.path.join(img_dir, name))
     dataset = ImageDataset(df, img_dir)
     
+    # transform 생성
+    aug_transform = A.Compose([A.Resize(10, 10), A.Normalize(), ToTensorV2()])
+    org_transform = A.Compose([A.Resize(10, 10), A.Normalize(), ToTensorV2()])
+    
     # add_org=True인 경우
-    aug_with_org = AugmentedDataset(dataset, num_aug=2, add_org=True)
+    aug_with_org = AugmentedDataset(dataset, num_aug=2, add_org=True, aug_transform=aug_transform, org_transform=org_transform)
     assert len(aug_with_org) == len(dataset) * 3  # original + 2 augmented = 3x
     
     # add_org=False인 경우 
-    aug_without_org = AugmentedDataset(dataset, num_aug=2, add_org=False)
+    aug_without_org = AugmentedDataset(dataset, num_aug=2, add_org=False, aug_transform=aug_transform, org_transform=org_transform)
     assert len(aug_without_org) == len(dataset) * 2  # 2 augmented only = 2x
 
 
