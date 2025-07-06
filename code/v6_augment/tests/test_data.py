@@ -157,7 +157,7 @@ class TestTransforms:
         assert test_transform is not None
         
         # 더미 이미지로 테스트
-        dummy_img = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        dummy_img = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
         
         # Train transform 적용
         train_result = train_transform(image=dummy_img)

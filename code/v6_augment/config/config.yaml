@@ -38,6 +38,17 @@ training:
     valid_count: 0             # augmentation copies for validation dataset
     valid_tta: 0               # TTA count during validation
     test_tta: 0                # TTA count during inference
+    # Available Albumentations ops:
+    # horizontal_flip, vertical_flip, random_rotate90, rotate, transpose,
+    # shift_scale_rotate, optical_distortion, grid_distortion, elastic_transform,
+    # perspective, random_brightness_contrast, color_jitter, hsv, random_gamma,
+    # clahe, to_gray, channel_shuffle, invert, gauss_noise, blur, motion_blur,
+    # median_blur, downscale, jpeg, sharpen, emboss, piecewise_affine,
+    # random_resized_crop, center_crop, random_crop, pad_if_needed,
+    # coarse_dropout, cutout, channel_dropout, fancy_pca, equalize, posterize,
+    # solarize, iso_noise, multiplicative_noise, random_grid_shuffle,
+    # random_shadow, random_sunflare, random_fog, random_rain, random_snow,
+    # zoom_blur, grid_dropout, gaussian_blur, glass_blur, pixel_dropout
     train_ops: [all]           # list of albumentations ops or [all]
     valid_ops: []              # validation dataset augmentation ops
     valid_tta_ops: [rotate]    # ops applied for validation TTA

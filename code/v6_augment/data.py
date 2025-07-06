@@ -186,6 +186,46 @@ def _get_albumentations_ops(intensity: float, img_size: int):
         "sharpen": A.Sharpen(alpha=(0.1, 0.3), lightness=(0.9, 1.1), p=0.2 * intensity),
         "emboss": A.Emboss(alpha=(0.1, 0.3), strength=(0.2, 0.5), p=0.2 * intensity),
         "piecewise_affine": A.PiecewiseAffine(scale=(0.01 * intensity, 0.05 * intensity), p=0.2 * intensity),
+
+        # additional transformations
+        "random_resized_crop": A.RandomResizedCrop(
+            height=img_size,
+            width=img_size,
+            scale=(1 - 0.3 * intensity, 1.0),
+            ratio=(0.75, 1.33),
+            p=0.5 * intensity,
+        ),
+        "center_crop": A.CenterCrop(
+            height=int(img_size * (1 - 0.1 * intensity)),
+            width=int(img_size * (1 - 0.1 * intensity)),
+            p=0.3 * intensity,
+        ),
+        "random_crop": A.RandomCrop(
+            height=int(img_size * (1 - 0.1 * intensity)),
+            width=int(img_size * (1 - 0.1 * intensity)),
+            p=0.3 * intensity,
+        ),
+        "pad_if_needed": A.PadIfNeeded(min_height=img_size, min_width=img_size, p=0.2 * intensity),
+        "coarse_dropout": A.CoarseDropout(max_holes=2, max_height=8, max_width=8, p=0.2 * intensity),
+        "cutout": A.Cutout(num_holes=2, max_h_size=8, max_w_size=8, p=0.2 * intensity),
+        "channel_dropout": A.ChannelDropout(channel_drop_range=(1, 1), p=0.1 * intensity),
+        "fancy_pca": A.FancyPCA(alpha=0.1 * intensity, p=0.2 * intensity),
+        "equalize": A.Equalize(p=0.2 * intensity),
+        "posterize": A.Posterize(num_bits=4, p=0.2 * intensity),
+        "solarize": A.Solarize(p=0.2 * intensity),
+        "iso_noise": A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1 * intensity, 0.5 * intensity), p=0.3 * intensity),
+        "multiplicative_noise": A.MultiplicativeNoise(multiplier=(1 - 0.1 * intensity, 1 + 0.1 * intensity), p=0.2 * intensity),
+        "random_grid_shuffle": A.RandomGridShuffle(grid=(2, 2), p=0.2 * intensity),
+        "random_shadow": A.RandomShadow(p=0.2 * intensity),
+        "random_sunflare": A.RandomSunFlare(p=0.2 * intensity),
+        "random_fog": A.RandomFog(fog_coef_lower=0.1 * intensity, fog_coef_upper=0.3 * intensity, p=0.2 * intensity),
+        "random_rain": A.RandomRain(p=0.2 * intensity),
+        "random_snow": A.RandomSnow(p=0.2 * intensity),
+        "zoom_blur": A.ZoomBlur(p=0.2 * intensity),
+        "grid_dropout": A.GridDropout(ratio=0.5, p=0.2 * intensity),
+        "gaussian_blur": A.GaussianBlur(blur_limit=(3, 5), p=0.2 * intensity),
+        "glass_blur": A.GlassBlur(p=0.2 * intensity),
+        "pixel_dropout": A.PixelDropout(dropout_prob=0.01, p=0.1 * intensity),
     }
 
 def get_transforms(cfg, split: str = "train"):

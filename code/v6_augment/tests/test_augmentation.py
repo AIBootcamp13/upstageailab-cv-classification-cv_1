@@ -48,7 +48,7 @@ def test_predict_single_model_tta():
 def test_get_transforms_many_ops():
     cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
     train_t = get_transforms(cfg, 'train')
-    assert len(train_t.transforms) > 10
+    assert len(train_t.transforms) > 30
 
 
 def test_get_transforms_augraphy_lambda():
@@ -70,3 +70,11 @@ def test_custom_ops_selection():
     names = [type(t).__name__ for t in train_t.transforms]
     assert any('Rotate' in n for n in names)
     assert len(train_t.transforms) <= 4
+
+
+def test_new_ops_present():
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
+    train_t = get_transforms(cfg, 'train')
+    names = [type(t).__name__ for t in train_t.transforms]
+    assert any('RandomSunFlare' in n for n in names)
+    assert any('RandomFog' in n for n in names)
