@@ -135,6 +135,11 @@ model_save:
   save_last: true  # 마지막 에포크 모델 저장
   wandb_artifact: true  # wandb 아티팩트로 등록
 
+# Random seed ensemble configuration
+random_seed_ensemble:
+  enabled: false
+  count: 1  # 시도할 랜덤 시드 개수 (training.seed부터 순차 증가)
+
 # W&B configuration
 wandb:
   enabled: false

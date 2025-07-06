@@ -8,6 +8,7 @@ import sys
 import pytest
 import tempfile
 import pandas as pd
+import numpy as np
 from PIL import Image
 from omegaconf import OmegaConf
 from unittest.mock import patch, MagicMock
@@ -248,6 +249,30 @@ wandb:
                     # 검증 없이 학습되었는지 확인
                     train_call_args = mock_train.call_args
                     assert train_call_args[0][2] is None  # val_loader가 None
+
+    @patch('main.setup_wandb')
+    @patch('main.finish_wandb')
+    @patch('main.log')
+    def test_random_seed_ensemble(self, mock_log, mock_finish_wandb, mock_setup_wandb):
+        cfg = self.create_test_config('holdout')
+        cfg.random_seed_ensemble = {'enabled': True, 'count': 2}
+
+        with patch('main.prepare_data_loaders') as mock_prepare_data, \
+             patch('main.train_single_model') as mock_train, \
+             patch('main.predict_single_model') as mock_predict, \
+             patch('main.save_predictions') as mock_save, \
+             patch('main.upload_to_wandb'):
+
+            mock_prepare_data.return_value = (MagicMock(), MagicMock(), MagicMock(), None)
+            mock_train.return_value = MagicMock()
+            mock_predict.return_value = np.zeros((12, 3))
+            mock_save.return_value = pd.DataFrame({'ID': ['test_0.jpg'], 'target': [0]})
+
+            main(cfg)
+
+            assert mock_train.call_count == 2
+            assert mock_predict.call_count == 2
+            mock_save.assert_called_once()
 
 
 class TestModuleIntegration:

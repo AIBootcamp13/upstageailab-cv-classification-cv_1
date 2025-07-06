@@ -39,8 +39,17 @@ def _clone_dataset_with_transform(dataset, transform):
     raise ValueError("Unsupported dataset type for TTA")
 
 
-def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0):
-    """단일 모델로 추론"""
+def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0, return_probs=False):
+    """단일 모델로 추론
+
+    Args:
+        model: 학습된 모델
+        test_loader: 테스트 데이터 로더
+        device: 실행 디바이스
+        tta_transform: TTA에 사용할 transform
+        tta_count: TTA 횟수
+        return_probs: True면 소프트맥스 확률을 반환
+    """
     log.info("추론 시작")
 
     model.eval()
@@ -59,12 +68,24 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
             probs += _predict_probs(model, t_loader, device)
         probs /= (tta_count + 1)
 
+    if return_probs:
+        return probs
+
     preds_list = probs.argmax(axis=1).tolist()
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0):
-    """K-Fold 모델들로 앙상블 추론"""
+def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0, return_probs=False):
+    """K-Fold 모델들로 앙상블 추론
+
+    Args:
+        models: 학습된 모델 리스트
+        test_loader: 테스트 데이터 로더
+        device: 실행 디바이스
+        tta_transform: TTA transform
+        tta_count: TTA 횟수
+        return_probs: True면 fold 앙상블 확률을 반환
+    """
     log.info("K-Fold 앙상블 추론 시작")
     
     all_predictions = []
@@ -96,8 +117,11 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
     # 앙상블 예측
     log.info("K-Fold 앙상블 예측 계산 중...")
     ensemble_predictions = np.mean(all_predictions, axis=0)
+    if return_probs:
+        return ensemble_predictions
+
     final_preds = np.argmax(ensemble_predictions, axis=1)
-    
+
     return final_preds
 
 

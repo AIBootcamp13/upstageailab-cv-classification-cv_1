@@ -140,6 +140,13 @@ e.g.
 
 - _Write model train and test process with capture_
 
+### Random Seed Ensemble
+
+`code/v6_augment`에서 랜덤 시드 앙상블 기능을 제공한다. 설정 파일의
+`random_seed_ensemble.enabled` 값을 `true`로 두면 학습 시드를 변경해
+여러 번 학습하고, 모든 모델의 예측을 평균하여 최종 결과를 생성한다.
+`random_seed_ensemble.count` 로 시드 변경 횟수를 지정할 수 있다.
+
 ## 5. Result
 
 ### Leader Board
