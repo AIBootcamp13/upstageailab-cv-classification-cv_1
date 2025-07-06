@@ -299,7 +299,7 @@ def get_transforms(cfg, ops_key: str | None):
     ops_list = aug_cfg.get(ops_key, []) if ops_key else []
 
     selected = []
-    if method in ("albumentations", "mix") and intensity > 0:
+    if method in ("albumentations", "mix") and intensity > 0 and ops_key is not None:
         ops_dict = _get_albumentations_ops(intensity, cfg.data.img_size)
         if not ops_list or ops_list == ["all"]:
             selected.extend(ops_dict.values())
