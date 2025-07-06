@@ -289,7 +289,12 @@ def get_transforms(cfg, split: str = "train"):
 
 def prepare_data_loaders(cfg, seed):
     """설정에 따라 데이터 로더들을 준비"""
-    data_path = cfg.data.data_path
+    # 개별 경로 설정 (필수 항목)
+    train_images_path = cfg.data.train_images_path
+    test_images_path = cfg.data.test_images_path
+    train_csv_path = cfg.data.train_csv_path
+    test_csv_path = cfg.data.test_csv_path
+    
     img_size = cfg.data.img_size
     batch_size = cfg.training.batch_size
     num_workers = cfg.data.num_workers
@@ -300,12 +305,12 @@ def prepare_data_loaders(cfg, seed):
     test_transform = get_transforms(cfg, "test")
     
     # 전체 훈련 데이터 로드
-    full_train_df = pd.read_csv(f"{data_path}/train.csv")
+    full_train_df = pd.read_csv(train_csv_path)
     
     # 테스트 데이터 로더 준비
     test_dataset = ImageDataset(
-        f"{data_path}/sample_submission.csv",
-        f"{data_path}/test/",
+        test_csv_path,
+        test_images_path,
         transform=test_transform
     )
     test_loader = DataLoader(
@@ -326,7 +331,7 @@ def prepare_data_loaders(cfg, seed):
         train_loader, val_loader = _prepare_holdout_loaders(
             cfg,
             full_train_df,
-            data_path,
+            train_images_path,
             train_transform,
             val_transform,
             seed,
@@ -338,7 +343,7 @@ def prepare_data_loaders(cfg, seed):
         return None, None, test_loader, (
             folds,
             full_train_df,
-            data_path,
+            train_images_path,
             train_transform,
             val_transform,
             test_transform,
@@ -347,7 +352,7 @@ def prepare_data_loaders(cfg, seed):
     elif validation_strategy == "none":
         train_dataset = IndexedImageDataset(
             full_train_df,
-            f"{data_path}/train/",
+            train_images_path,
             transform=train_transform
         )
         if getattr(aug_cfg, "train_count", 0) > 0:
@@ -366,7 +371,7 @@ def prepare_data_loaders(cfg, seed):
         raise ValueError(f"Unknown validation strategy: {validation_strategy}")
 
 
-def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val_transform, seed):
+def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transform, val_transform, seed):
     """Holdout 검증을 위한 데이터 로더 준비"""
     train_ratio = cfg.validation.holdout.train_ratio
     stratify = cfg.validation.holdout.stratify
@@ -391,7 +396,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
-        f"{data_path}/train/",
+        train_images_path,
         transform=train_transform
     )
     if getattr(aug_cfg, "train_count", 0) > 0:
@@ -399,7 +404,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val
 
     val_dataset = IndexedImageDataset(
         val_df,
-        f"{data_path}/train/",
+        train_images_path,
         transform=val_transform
     )
     if getattr(aug_cfg, "valid_count", 0) > 0:
@@ -440,7 +445,7 @@ def _prepare_kfold_splits(cfg, full_train_df, seed):
     return folds
 
 
-def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform, val_transform, cfg):
+def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_transform, val_transform, cfg):
     """특정 fold에 대한 데이터 로더 반환"""
     train_idx, val_idx = folds[fold_idx]
 
@@ -453,14 +458,14 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform
     # Dataset 정의
     train_dataset = IndexedImageDataset(
         train_df,
-        f"{data_path}/train/",
+        train_images_path,
         transform=train_transform
     )
     if getattr(aug_cfg, "train_count", 0) > 0:
         train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
     val_dataset = IndexedImageDataset(
         val_df,
-        f"{data_path}/train/",
+        train_images_path,
         transform=val_transform
     )
     if getattr(aug_cfg, "valid_count", 0) > 0:

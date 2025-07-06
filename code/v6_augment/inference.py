@@ -16,7 +16,7 @@ import wandb
 import log_util as log
 import pandas as pd
 from torch.utils.data import DataLoader
-from data import ImageDataset, IndexedImageDataset
+from data import ImageDataset, IndexedImageDataset, get_transforms
 
 
 def _predict_probs(model, loader, device):
@@ -132,7 +132,8 @@ def save_predictions(predictions, test_dataset, cfg):
     pred_df['target'] = predictions
     
     # 검증: sample_submission과 ID 순서가 같은지 확인
-    sample_submission_df = pd.read_csv(f"{cfg.data.data_path}/sample_submission.csv")
+    test_csv_path = cfg.data.test_csv_path
+    sample_submission_df = pd.read_csv(test_csv_path)
     assert (sample_submission_df['ID'] == pred_df['ID']).all(), "ID 순서가 sample_submission과 다릅니다"
     
     # 출력 디렉토리 생성

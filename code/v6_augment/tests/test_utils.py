@@ -103,8 +103,9 @@ class TestSetSeed:
         seed = 42
         set_seed(seed)
         
-        # 로그가 호출되었는지 확인
-        mock_log.info.assert_called_with(f"시드 고정 완료: {seed}")
+        # 로그가 호출되었는지 확인 (GPU 환경에서는 추가 메시지 포함)
+        call_args = mock_log.info.call_args[0][0]
+        assert f"시드 고정 완료: {seed}" in call_args
     
     def test_set_seed_reproducibility(self):
         """시드 설정 후 재현성 테스트"""

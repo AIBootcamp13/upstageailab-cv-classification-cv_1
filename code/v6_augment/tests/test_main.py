@@ -70,7 +70,10 @@ class TestMainPipeline:
         """테스트용 설정 생성"""
         cfg = OmegaConf.create({
             'data': {
-                'data_path': self.data_dir,
+                'train_images_path': os.path.join(self.data_dir, "train"),
+                'test_images_path': os.path.join(self.data_dir, "test"),
+                'train_csv_path': os.path.join(self.data_dir, "train.csv"),
+                'test_csv_path': os.path.join(self.data_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },
@@ -126,7 +129,10 @@ class TestMainPipeline:
         with open(config_path, 'w') as f:
             f.write(f"""
 data:
-  data_path: {self.data_dir}
+  train_images_path: {os.path.join(self.data_dir, "train")}
+  test_images_path: {os.path.join(self.data_dir, "test")}
+  train_csv_path: {os.path.join(self.data_dir, "train.csv")}
+  test_csv_path: {os.path.join(self.data_dir, "sample_submission.csv")}
   img_size: 32
   num_workers: 0
 model:
@@ -314,7 +320,10 @@ class TestModuleIntegration:
         # 설정
         self.cfg = OmegaConf.create({
             'data': {
-                'data_path': self.data_dir,
+                'train_images_path': os.path.join(self.data_dir, "train"),
+                'test_images_path': os.path.join(self.data_dir, "test"),
+                'train_csv_path': os.path.join(self.data_dir, "train.csv"),
+                'test_csv_path': os.path.join(self.data_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },
@@ -508,7 +517,10 @@ class TestErrorHandling:
         # 데이터 파일이 없는 경우
         cfg = OmegaConf.create({
             'data': {
-                'data_path': temp_dir,
+                'train_images_path': os.path.join(temp_dir, "train"),
+                'test_images_path': os.path.join(temp_dir, "test"),
+                'train_csv_path': os.path.join(temp_dir, "train.csv"),
+                'test_csv_path': os.path.join(temp_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },

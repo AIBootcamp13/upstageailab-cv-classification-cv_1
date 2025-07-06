@@ -211,7 +211,10 @@ class TestDataLoaderPreparation:
         """Holdout 검증 데이터 로더 테스트"""
         cfg = OmegaConf.create({
             'data': {
-                'data_path': self.data_dir,
+                'train_images_path': os.path.join(self.data_dir, "train"),
+                'test_images_path': os.path.join(self.data_dir, "test"),
+                'train_csv_path': os.path.join(self.data_dir, "train.csv"),
+                'test_csv_path': os.path.join(self.data_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },
@@ -245,7 +248,10 @@ class TestDataLoaderPreparation:
         """K-Fold 검증 데이터 로더 테스트"""
         cfg = OmegaConf.create({
             'data': {
-                'data_path': self.data_dir,
+                'train_images_path': os.path.join(self.data_dir, "train"),
+                'test_images_path': os.path.join(self.data_dir, "test"),
+                'train_csv_path': os.path.join(self.data_dir, "train.csv"),
+                'test_csv_path': os.path.join(self.data_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },
@@ -271,10 +277,10 @@ class TestDataLoaderPreparation:
         assert kfold_data is not None
         
         # K-Fold 데이터 확인
-        folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
+        folds, full_train_df, train_images_path, train_transform, val_transform, test_transform = kfold_data
         assert len(folds) == 3
         assert len(full_train_df) == 60
-        assert data_path == self.data_dir
+        assert train_images_path == os.path.join(self.data_dir, "train")
         assert train_transform is not None
         assert val_transform is not None
         assert test_transform is not None
@@ -283,7 +289,10 @@ class TestDataLoaderPreparation:
         """No validation 데이터 로더 테스트"""
         cfg = OmegaConf.create({
             'data': {
-                'data_path': self.data_dir,
+                'train_images_path': os.path.join(self.data_dir, "train"),
+                'test_images_path': os.path.join(self.data_dir, "test"),
+                'train_csv_path': os.path.join(self.data_dir, "train.csv"),
+                'test_csv_path': os.path.join(self.data_dir, "sample_submission.csv"),
                 'img_size': 32,
                 'num_workers': 0
             },
@@ -357,7 +366,7 @@ class TestKFoldLoaders:
             fold_idx,
             self.folds,
             self.full_train_df,
-            self.data_dir,
+            os.path.join(self.data_dir, "train"),
             self.train_transform,
             self.val_transform,
             self.cfg,

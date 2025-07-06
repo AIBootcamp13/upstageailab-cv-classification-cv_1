@@ -4,7 +4,12 @@ defaults:
 
 # Data configuration
 data:
-  data_path: "../../input/data"
+  # Individual path configurations
+  train_images_path: "../../input/data/train"
+  test_images_path: "../../input/data/test"
+  train_csv_path: "../../input/data/train.csv"
+  test_csv_path: "../../input/data/sample_submission.csv"
+  
   img_size: 32
   num_workers: 0
 

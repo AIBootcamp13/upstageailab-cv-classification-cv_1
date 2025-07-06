@@ -56,6 +56,12 @@ training:
     test_tta_ops: [rotate]     # ops applied for inference TTA
     
 data:
+  # Individual path configurations
+  train_images_path: "../../input/data/train"
+  test_images_path: "../../input/data/test"
+  train_csv_path: "../../input/data/train.csv"
+  test_csv_path: "../../input/data/sample_submission.csv"
+  
   img_size: 64
   num_workers: 0 
 

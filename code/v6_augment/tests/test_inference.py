@@ -185,7 +185,7 @@ class TestSavePredictions:
         # 설정
         self.cfg = OmegaConf.create({
             'data': {
-                'data_path': self.temp_dir
+                'test_csv_path': os.path.join(self.temp_dir, 'sample_submission.csv')
             },
             'output': {
                 'dir': self.temp_dir,
@@ -282,7 +282,7 @@ class TestRunInference:
         # 설정
         self.cfg = OmegaConf.create({
             'data': {
-                'data_path': self.temp_dir
+                'test_csv_path': os.path.join(self.temp_dir, 'sample_submission.csv')
             },
             'output': {
                 'dir': self.temp_dir,
@@ -414,7 +414,7 @@ class TestInferenceIntegration:
         # 설정
         self.cfg = OmegaConf.create({
             'data': {
-                'data_path': self.temp_dir
+                'test_csv_path': os.path.join(self.temp_dir, 'sample_submission.csv')
             },
             'output': {
                 'dir': self.temp_dir,
