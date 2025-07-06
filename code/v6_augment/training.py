@@ -14,12 +14,12 @@ import wandb
 
 # Mixed Precision Training 지원
 try:
-    from torch.cuda.amp.autocast_mode import autocast
-    from torch.cuda.amp.grad_scaler import GradScaler
+    from torch.amp.autocast_mode import autocast
+    from torch.cuda.amp import GradScaler
     AMP_AVAILABLE = True
 except ImportError:
     try:
-        # 대안적인 import 방법
+        # 이전 버전 호환성
         from torch.cuda.amp import autocast, GradScaler
         AMP_AVAILABLE = True
     except ImportError:
@@ -57,7 +57,7 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler=None):
 
         if use_amp:
             # Mixed Precision Training
-            with autocast():
+            with autocast(device_type=device.type):
                 preds = model(image)
                 loss = loss_fn(preds, targets)
             

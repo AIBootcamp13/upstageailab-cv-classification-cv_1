@@ -11,11 +11,29 @@ import os
 import pandas as pd
 import numpy as np
 import cv2
+import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
+
+
+def _should_use_pin_memory():
+    """MPS 환경에서는 pin_memory를 사용하지 않도록 설정"""
+    try:
+        # MPS가 사용 가능하고 현재 사용 중인 경우 pin_memory=False
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+            return False
+        # CUDA가 사용 가능한 경우 pin_memory=True
+        elif torch.cuda.is_available():
+            return True
+        # CPU만 사용하는 경우 pin_memory=False
+        else:
+            return False
+    except Exception:
+        # 안전하게 False 반환
+        return False
 
 
 class ImageDataset(Dataset):
@@ -290,7 +308,7 @@ def prepare_data_loaders(cfg, seed):
         batch_size=batch_size,
         shuffle=False,
         num_workers=0,
-        pin_memory=True
+        pin_memory=_should_use_pin_memory()
     )
     
     # augmentation 설정
@@ -334,7 +352,7 @@ def prepare_data_loaders(cfg, seed):
             batch_size=batch_size,
             shuffle=True,
             num_workers=num_workers,
-            pin_memory=True, 
+            pin_memory=_should_use_pin_memory(), 
             drop_last=False
         )
         return train_loader, None, test_loader, None
@@ -388,7 +406,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val
         batch_size=batch_size, 
         shuffle=True, 
         num_workers=num_workers, 
-        pin_memory=True, 
+        pin_memory=_should_use_pin_memory(), 
         drop_last=False
     )
     val_loader = DataLoader(
@@ -396,7 +414,7 @@ def _prepare_holdout_loaders(cfg, full_train_df, data_path, train_transform, val
         batch_size=batch_size, 
         shuffle=False, 
         num_workers=num_workers, 
-        pin_memory=True
+        pin_memory=_should_use_pin_memory()
     )
     
     return train_loader, val_loader
@@ -449,7 +467,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform
         batch_size=cfg.training.batch_size, 
         shuffle=True, 
         num_workers=cfg.data.num_workers, 
-        pin_memory=True, 
+        pin_memory=_should_use_pin_memory(), 
         drop_last=False
     )
     val_loader = DataLoader(
@@ -457,7 +475,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, data_path, train_transform
         batch_size=cfg.training.batch_size, 
         shuffle=False, 
         num_workers=cfg.data.num_workers, 
-        pin_memory=True
+        pin_memory=_should_use_pin_memory()
     )
     
     return train_loader, val_loader, train_df, val_df 
