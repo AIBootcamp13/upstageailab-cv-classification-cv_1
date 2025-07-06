@@ -58,8 +58,14 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.benchmark = True
-    log.info(f"시드 고정 완료: {seed}")
+    
+    # GPU 모드일 때만 재현성 확보를 위한 CUDA 설정
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        log.info(f"시드 고정 완료: {seed} (GPU 재현성 모드 활성화)")
+    else:
+        log.info(f"시드 고정 완료: {seed}")
 
 
 def setup_wandb(cfg):
