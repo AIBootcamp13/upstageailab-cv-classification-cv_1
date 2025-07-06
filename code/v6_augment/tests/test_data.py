@@ -149,8 +149,8 @@ class TestTransforms:
             'data': {'img_size': img_size},
             'augmentation': {'method': 'albumentations', 'intensity': 0.5}
         })
-        train_transform = get_transforms(cfg, 'train')
-        test_transform = get_transforms(cfg, 'test')
+        train_transform = get_transforms(cfg, 'train_aug_ops')
+        test_transform = get_transforms(cfg, None)
         
         # Transform 객체 확인
         assert train_transform is not None
@@ -349,8 +349,8 @@ class TestKFoldLoaders:
             'data': {'img_size': 32},
             'augmentation': {'method': 'albumentations', 'intensity': 0.0}
         })
-        self.train_transform = get_transforms(cfg, 'train')
-        self.val_transform = get_transforms(cfg, 'valid')
+        self.train_transform = get_transforms(cfg, 'train_aug_ops')
+        self.val_transform = get_transforms(cfg, 'valid_aug_ops')
         
         # 설정 객체
         self.cfg = OmegaConf.create({

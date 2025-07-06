@@ -39,10 +39,10 @@ training:
   augmentation:
     method: "none"            # "none", "albumentations", "augraphy", "mix"
     intensity: 0.0             # 0.0 ~ 1.0 augmentation strength
-    train_count: 0             # number of augmented copies per image
-    valid_count: 0             # augmentation copies for validation dataset
-    valid_tta: 0               # TTA count during validation
-    test_tta: 0                # TTA count during inference
+    train_aug_count: 0         # number of augmented copies per image
+    valid_aug_count: 0         # augmentation copies for validation dataset
+    valid_tta_count: 0         # TTA count during validation
+    test_tta_count: 0          # TTA count during inference
     # Available Albumentations ops:
     # horizontal_flip, vertical_flip, random_rotate90, rotate, transpose,
     # shift_scale_rotate, optical_distortion, grid_distortion, elastic_transform,
@@ -61,10 +61,14 @@ training:
     # lighting_gradient, brightness, color_shift, noise_texturize,
     # subtle_noise, shadow_cast, lines_degradation, bleed_through,
     # markup, scribbles, jpeg
-    train_ops: [all]           # list of op names (Albumentations/Augraphy) or [all]
-    valid_ops: []              # Albumentations/Augraphy ops for validation dataset
+    train_aug_ops: [all]       # list of op names (Albumentations/Augraphy) or [all]
+    valid_aug_ops: []          # Albumentations/Augraphy ops for validation dataset
     valid_tta_ops: [rotate]    # ops applied for validation TTA
     test_tta_ops: [rotate]     # ops applied for inference TTA
+    train_aug_add_org: true    # add original image to train augmented images
+    valid_aug_add_org: true    # add original image to valid augmented images
+    valid_tta_add_org: true    # add original image to valid tta images
+    test_tta_add_org: true     # add original image to test tta images
     
   # Learning rate scheduler configuration
   scheduler:
@@ -134,11 +138,11 @@ output:
 
 # Model saving configuration
 model_save:
-  enabled: true
+  enabled: false
   dir: "models"
-  save_best: true  # 최고 성능 모델 저장
-  save_last: true  # 마지막 에포크 모델 저장
-  wandb_artifact: true  # wandb 아티팩트로 등록
+  save_best: false  # 최고 성능 모델 저장
+  save_last: false  # 마지막 에포크 모델 저장
+  wandb_artifact: false  # wandb 아티팩트로 등록
 
 # Random seed ensemble configuration
 random_seed_ensemble:
@@ -151,5 +155,5 @@ wandb:
   project: null
   entity: null  # will be loaded from .env file
   run_name: "jhryu_v6_augment"  # auto-generated if null
-  tags: []
+  tags: [jhryu]
   notes: ""

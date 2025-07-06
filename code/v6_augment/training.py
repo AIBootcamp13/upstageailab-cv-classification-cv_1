@@ -218,7 +218,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
 
     aug_cfg = getattr(cfg, "augmentation", {})
     # TTA transform 준비
-    train_transform = get_transforms(cfg, "train")
+    train_transform = get_transforms(cfg, "train_aug_ops")
     
     log.info("학습 시작")
     
@@ -238,8 +238,8 @@ def train_single_model(cfg, train_loader, val_loader, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=get_transforms(cfg, "valid_tta") if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta", 0),
+                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
+                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
             )
             ret.update(val_ret)
             
@@ -403,8 +403,8 @@ def train_kfold_models(cfg, kfold_data, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=get_transforms(cfg, "valid_tta") if getattr(aug_cfg, "valid_tta", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta", 0),
+                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
+                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
             )
             
             # 결과 합치기

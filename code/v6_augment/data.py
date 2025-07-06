@@ -253,15 +253,21 @@ def _get_albumentations_ops(intensity: float, img_size: int):
         "pixel_dropout": A.PixelDropout(dropout_prob=0.01, p=0.1 * intensity),
     }
 
-def get_transforms(cfg, split: str = "train"):
-    """Return transforms for a given split"""
+def get_transforms(cfg, ops_key: str | None):
+    """Return transforms for a given ops_key
+    
+    Args:
+        cfg: Configuration object
+        ops_key: Key for augmentation ops. If None, 
+                returns basic transforms only (resize, normalize, totensor)
+    """
     img_size = getattr(getattr(cfg, "data", {}), "img_size", 224)
     aug_cfg = getattr(cfg, "augmentation", {})
     method = getattr(aug_cfg, "method", "none").lower()
     intensity = float(getattr(aug_cfg, "intensity", 0))
 
-    ops_key = f"{split}_ops"
-    ops_list = aug_cfg.get(ops_key, [])
+    # If ops_key is None or empty, use empty list (basic transforms only)
+    ops_list = aug_cfg.get(ops_key, []) if ops_key else []
 
     selected = []
     if method in ("albumentations", "mix") and intensity > 0:
@@ -273,7 +279,7 @@ def get_transforms(cfg, split: str = "train"):
                 if name in ops_dict:
                     selected.append(ops_dict[name])
 
-    if method in ("augraphy", "mix") and intensity > 0 and split in ("train", "valid", "valid_tta", "test_tta"):
+    if method in ("augraphy", "mix") and intensity > 0 and ops_key and ops_key in ("train_aug_ops", "valid_aug_ops", "valid_tta_ops", "test_tta_ops"):
         augraphy_aug = _create_augraphy_lambda(intensity, ops_list)
         if augraphy_aug is not None:
             selected.append(augraphy_aug)
@@ -300,9 +306,9 @@ def prepare_data_loaders(cfg, seed):
     num_workers = cfg.data.num_workers
 
     # Transform 준비
-    train_transform = get_transforms(cfg, "train")
-    val_transform = get_transforms(cfg, "valid")
-    test_transform = get_transforms(cfg, "test")
+    train_transform = get_transforms(cfg, "train_aug_ops")
+    val_transform = get_transforms(cfg, "valid_aug_ops")
+    test_transform = get_transforms(cfg, None)  # Basic transforms only (no augmentation)
     
     # 전체 훈련 데이터 로드
     full_train_df = pd.read_csv(train_csv_path)
@@ -355,8 +361,8 @@ def prepare_data_loaders(cfg, seed):
             train_images_path,
             transform=train_transform
         )
-        if getattr(aug_cfg, "train_count", 0) > 0:
-            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
+        if getattr(aug_cfg, "train_aug_count", 0) > 0:
+            train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -399,16 +405,16 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path, train_transf
         train_images_path,
         transform=train_transform
     )
-    if getattr(aug_cfg, "train_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
+    if getattr(aug_cfg, "train_aug_count", 0) > 0:
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
 
     val_dataset = IndexedImageDataset(
         val_df,
         train_images_path,
         transform=val_transform
     )
-    if getattr(aug_cfg, "valid_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))
+    if getattr(aug_cfg, "valid_aug_count", 0) > 0:
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0))
     
     # DataLoader 정의
     train_loader = DataLoader(
@@ -461,15 +467,15 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path, train_t
         train_images_path,
         transform=train_transform
     )
-    if getattr(aug_cfg, "train_count", 0) > 0:
-        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_count", 0))
+    if getattr(aug_cfg, "train_aug_count", 0) > 0:
+        train_dataset = AugmentedDataset(train_dataset, getattr(aug_cfg, "train_aug_count", 0))
     val_dataset = IndexedImageDataset(
         val_df,
         train_images_path,
         transform=val_transform
     )
-    if getattr(aug_cfg, "valid_count", 0) > 0:
-        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_count", 0))
+    if getattr(aug_cfg, "valid_aug_count", 0) > 0:
+        val_dataset = AugmentedDataset(val_dataset, getattr(aug_cfg, "valid_aug_count", 0))
     
     # DataLoader 정의
     train_loader = DataLoader(

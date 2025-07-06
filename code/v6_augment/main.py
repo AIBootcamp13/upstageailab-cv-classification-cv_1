@@ -88,8 +88,8 @@ def main(cfg: DictConfig) -> None:
                     models,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta") if getattr(getattr(cfg, "augmentation", {}), "test_tta", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta", 0),
+                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0) > 0 else None,
+                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0),
                     return_probs=True,
                 )
             else:
@@ -109,8 +109,8 @@ def main(cfg: DictConfig) -> None:
                     model,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta") if getattr(getattr(cfg, "augmentation", {}), "test_tta", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta", 0),
+                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0) > 0 else None,
+                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0),
                     return_probs=True,
                 )
 

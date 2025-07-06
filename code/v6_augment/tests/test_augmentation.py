@@ -35,19 +35,26 @@ def test_predict_single_model_tta():
     df = pd.DataFrame({'ID': [f'{i}.jpg' for i in range(4)], 'target': [0]*4})
     for name in df['ID']:
         Image.new('RGB', (32, 32), color='white').save(os.path.join(img_dir, name))
-    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 0.5}})
-    train_t = get_transforms(cfg, 'train')
-    test_t = get_transforms(cfg, 'test')
-    dataset = ImageDataset(df, img_dir, transform=test_t)
+    cfg = OmegaConf.create({
+        'data': {'img_size': 32}, 
+        'augmentation': {
+            'method': 'albumentations', 
+            'intensity': 0.5,
+            'test_tta_ops': ['rotate']
+        }
+    })
+    tta_transform = get_transforms(cfg, 'test_tta_ops')
+    test_transform = get_transforms(cfg, None)
+    dataset = ImageDataset(df, img_dir, transform=test_transform)
     loader = DataLoader(dataset, batch_size=2, shuffle=False)
     model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(32*32*3, 2))
-    preds = predict_single_model(model, loader, torch.device('cpu'), tta_transform=train_t, tta_count=1)
+    preds = predict_single_model(model, loader, torch.device('cpu'), tta_transform=tta_transform, tta_count=1)
     assert len(preds) == len(dataset)
 
 
 def test_get_transforms_many_ops():
     cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
-    train_t = get_transforms(cfg, 'train')
+    train_t = get_transforms(cfg, 'train_aug_ops')
     assert len(train_t.transforms) > 30
 
 
@@ -56,7 +63,7 @@ def test_get_transforms_augraphy_lambda():
     if importlib.util.find_spec('augraphy') is None:
         pytest.skip('augraphy not installed')
     cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'augraphy', 'intensity': 1.0}})
-    train_t = get_transforms(cfg, 'train')
+    train_t = get_transforms(cfg, 'train_aug_ops')
     assert any(isinstance(t, A.Lambda) for t in train_t.transforms)
 
 
@@ -64,8 +71,8 @@ def test_custom_ops_selection():
     cfg = OmegaConf.create({'data': {'img_size': 32},
                             'augmentation': {'method': 'albumentations',
                                              'intensity': 1.0,
-                                             'train_ops': ['rotate']}})
-    train_t = get_transforms(cfg, 'train')
+                                             'train_aug_ops': ['rotate']}})
+    train_t = get_transforms(cfg, 'train_aug_ops')
     # rotate + resize/normalize/totensor
     names = [type(t).__name__ for t in train_t.transforms]
     assert any('Rotate' in n for n in names)
@@ -74,7 +81,7 @@ def test_custom_ops_selection():
 
 def test_new_ops_present():
     cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
-    train_t = get_transforms(cfg, 'train')
+    train_t = get_transforms(cfg, 'train_aug_ops')
     names = [type(t).__name__ for t in train_t.transforms]
     assert any('RandomSunFlare' in n for n in names)
     assert any('RandomFog' in n for n in names)
@@ -87,6 +94,6 @@ def test_custom_augraphy_ops():
     cfg = OmegaConf.create({'data': {'img_size': 32},
                             'augmentation': {'method': 'augraphy',
                                              'intensity': 1.0,
-                                             'train_ops': ['ink_bleed']}})
-    train_t = get_transforms(cfg, 'train')
+                                             'train_aug_ops': ['ink_bleed']}})
+    train_t = get_transforms(cfg, 'train_aug_ops')
     assert any(isinstance(t, A.Lambda) for t in train_t.transforms)
