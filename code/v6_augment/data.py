@@ -71,25 +71,20 @@ class AugmentedDataset(Dataset):
         return self.base_dataset[base_idx]
 
 
-def _create_augraphy_lambda(intensity: float):
-    """A.Lambda wrapper for simple Augraphy-like effects"""
+def _create_augraphy_lambda(intensity: float, ops: list[str] | None = None):
+    """Create an Albumentations Lambda applying selected Augraphy transforms."""
     try:
         from augraphy import AugraphyPipeline
         from augraphy.augmentations import (
-            BadPhotoCopy,
-            BindingsAndFasteners,
             BleedThrough,
-            BookBinding,
             Brightness,
             BrightnessTexturize,
             ColorPaper,
             ColorShift,
-            Dithering,
             DirtyDrum,
             DirtyRollers,
             Geometric,
             InkBleed,
-            InkColorSwap,
             InkMottling,
             InkShifter,
             Jpeg,
@@ -106,36 +101,43 @@ def _create_augraphy_lambda(intensity: float):
             SubtleNoise,
         )
 
+        all_ops: dict[str, tuple[str, object]] = {
+            "ink_bleed": ("ink", InkBleed(p=0.2 * intensity)),
+            "ink_mottling": ("ink", InkMottling(p=0.2 * intensity)),
+            "ink_shifter": ("ink", InkShifter(p=0.2 * intensity)),
+            "low_ink_random_lines": ("ink", LowInkRandomLines(p=0.2 * intensity)),
+            "low_ink_periodic_lines": ("ink", LowInkPeriodicLines(p=0.2 * intensity)),
+            "color_paper": ("paper", ColorPaper(p=0.3 * intensity)),
+            "brightness_texturize": ("paper", BrightnessTexturize(p=0.3 * intensity)),
+            "dirty_rollers": ("paper", DirtyRollers(p=0.2 * intensity)),
+            "dirty_drum": ("paper", DirtyDrum(p=0.2 * intensity)),
+            "stains": ("paper", Stains(p=0.3 * intensity)),
+            "page_border": ("paper", PageBorder(p=0.2 * intensity)),
+            "geometric": ("post", Geometric(rotate_range=(-15 * intensity, 15 * intensity), p=0.5 * intensity)),
+            "lighting_gradient": ("post", LightingGradient(p=0.3 * intensity)),
+            "brightness": ("post", Brightness(brightness_range=(1 - 0.3 * intensity, 1 + 0.3 * intensity), p=0.5 * intensity)),
+            "color_shift": ("post", ColorShift(p=0.3 * intensity)),
+            "noise_texturize": ("post", NoiseTexturize(p=0.3 * intensity)),
+            "subtle_noise": ("post", SubtleNoise(p=0.3 * intensity)),
+            "shadow_cast": ("post", ShadowCast(p=0.2 * intensity)),
+            "lines_degradation": ("post", LinesDegradation(p=0.2 * intensity)),
+            "bleed_through": ("post", BleedThrough(p=0.1 * intensity)),
+            "markup": ("post", Markup(p=0.1 * intensity)),
+            "scribbles": ("post", Scribbles(p=0.1 * intensity)),
+            "jpeg": ("post", Jpeg(p=0.2 * intensity)),
+        }
+
+        if not ops or ops == ["all"]:
+            ops = list(all_ops.keys())
+
+        ink_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "ink" and name in ops]
+        paper_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "paper" and name in ops]
+        post_phase = [aug for name, (phase, aug) in all_ops.items() if phase == "post" and name in ops]
+
         pipeline = AugraphyPipeline(
-            ink_phase=[
-                InkBleed(p=0.2 * intensity),
-                InkMottling(p=0.2 * intensity),
-                InkShifter(p=0.2 * intensity),
-                LowInkRandomLines(p=0.2 * intensity),
-                LowInkPeriodicLines(p=0.2 * intensity),
-            ],
-            paper_phase=[
-                ColorPaper(p=0.3 * intensity),
-                BrightnessTexturize(p=0.3 * intensity),
-                DirtyRollers(p=0.2 * intensity),
-                DirtyDrum(p=0.2 * intensity),
-                Stains(p=0.3 * intensity),
-                PageBorder(p=0.2 * intensity),
-            ],
-            post_phase=[
-                Geometric(rotate_range=(-15 * intensity, 15 * intensity), p=0.5 * intensity),
-                LightingGradient(p=0.3 * intensity),
-                Brightness(brightness_range=(1 - 0.3 * intensity, 1 + 0.3 * intensity), p=0.5 * intensity),
-                ColorShift(p=0.3 * intensity),
-                NoiseTexturize(p=0.3 * intensity),
-                SubtleNoise(p=0.3 * intensity),
-                ShadowCast(p=0.2 * intensity),
-                LinesDegradation(p=0.2 * intensity),
-                BleedThrough(p=0.1 * intensity),
-                Markup(p=0.1 * intensity),
-                Scribbles(p=0.1 * intensity),
-                Jpeg(p=0.2 * intensity),
-            ],
+            ink_phase=ink_phase,
+            paper_phase=paper_phase,
+            post_phase=post_phase,
         )
 
         def _aug(image, **_):
@@ -249,7 +251,7 @@ def get_transforms(cfg, split: str = "train"):
                     selected.append(ops_dict[name])
 
     if method in ("augraphy", "mix") and intensity > 0 and split in ("train", "valid", "valid_tta", "test_tta"):
-        augraphy_aug = _create_augraphy_lambda(intensity)
+        augraphy_aug = _create_augraphy_lambda(intensity, ops_list)
         if augraphy_aug is not None:
             selected.append(augraphy_aug)
 

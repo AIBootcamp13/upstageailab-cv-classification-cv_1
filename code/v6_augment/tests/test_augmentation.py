@@ -78,3 +78,15 @@ def test_new_ops_present():
     names = [type(t).__name__ for t in train_t.transforms]
     assert any('RandomSunFlare' in n for n in names)
     assert any('RandomFog' in n for n in names)
+
+
+def test_custom_augraphy_ops():
+    import importlib
+    if importlib.util.find_spec('augraphy') is None:
+        pytest.skip('augraphy not installed')
+    cfg = OmegaConf.create({'data': {'img_size': 32},
+                            'augmentation': {'method': 'augraphy',
+                                             'intensity': 1.0,
+                                             'train_ops': ['ink_bleed']}})
+    train_t = get_transforms(cfg, 'train')
+    assert any(isinstance(t, A.Lambda) for t in train_t.transforms)
