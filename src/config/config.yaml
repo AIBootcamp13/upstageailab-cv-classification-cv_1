@@ -1,0 +1,161 @@
+# Hydra configuration for exp3 experiment
+defaults:
+  - _self_
+
+# Data configuration
+data:
+  # Individual path configurations
+  train_images_path: "../input/data/train"
+  test_images_path: "../input/data/test"
+  train_csv_path: "../input/data/train.csv"
+  test_csv_path: "../input/data/sample_submission.csv"
+  
+  img_size: 32
+  num_workers: 0
+
+# Model configuration
+model:
+  name: "resnet34"
+  num_classes: 17
+  pretrained: true
+
+# Training configuration
+train:
+  lr: 1e-3
+  epochs: 1
+  batch_size: 32
+  seed: 42
+  
+  # Label Smoothing configuration
+  label_smoothing:
+    enabled: false
+    smoothing: 0.1  # 0.0 ~ 1.0, 일반적으로 0.1
+  
+  # Mixed Precision Training configuration
+  mixed_precision:
+    enabled: false
+
+  # Learning rate scheduler configuration
+  scheduler:
+    enabled: true
+    name: "cosine"  # "cosine", "step", "plateau", "cosine_warm", "none"
+    
+    # CosineAnnealingLR parameters
+    cosine:
+      T_max: 100  # Usually set to total epochs
+      eta_min: 1e-6
+      last_epoch: -1
+    
+    # StepLR parameters
+    step:
+      step_size: 30
+      gamma: 0.1
+      last_epoch: -1
+    
+    # ReduceLROnPlateau parameters
+    plateau:
+      mode: "min"  # "min" for loss, "max" for accuracy
+      factor: 0.5
+      patience: 5
+      threshold: 1e-4
+      threshold_mode: "rel"
+      cooldown: 0
+      min_lr: 1e-8
+      eps: 1e-8
+    
+    # CosineAnnealingWarmRestarts parameters
+    cosine_warm:
+      T_0: 10
+      T_mult: 1
+      eta_min: 1e-6
+      last_epoch: -1
+
+# Data augmentation configuration
+augment:
+  method: "mix"            # "none", "albumentations", "augraphy", "mix"
+  intensity: 1.0             # 0.0 ~ 1.0 augmentation strength
+  train_aug_count: 1         # number of augmented copies per image
+  valid_aug_count: 1         # augmentation copies for validation dataset
+  valid_tta_count: 1         # TTA count during validation
+  test_tta_count: 1          # TTA count during inference
+  # Available Albumentations ops:
+  # horizontal_flip, vertical_flip, random_rotate90, rotate, transpose,
+  # shift_scale_rotate, optical_distortion, grid_distortion, elastic_transform,
+  # perspective, random_brightness_contrast, color_jitter, hsv, random_gamma,
+  # clahe, to_gray, channel_shuffle, invert, gauss_noise, blur, motion_blur,
+  # median_blur, downscale, jpeg, sharpen, emboss, piecewise_affine,
+  # random_resized_crop, center_crop, random_crop, pad_if_needed,
+  # coarse_dropout, channel_dropout, fancy_pca, equalize, posterize,
+  # solarize, iso_noise, multiplicative_noise, random_grid_shuffle,
+  # random_shadow, random_sunflare, random_fog, random_rain, random_snow,
+  # zoom_blur, grid_dropout, gaussian_blur, glass_blur, pixel_dropout
+  # Available Augraphy ops:
+  # ink_bleed, ink_mottling, ink_shifter, low_ink_random_lines,
+  # low_ink_periodic_lines, color_paper, brightness_texturize,
+  # dirty_rollers, dirty_drum, stains, page_border, geometric,
+  # lighting_gradient, brightness, color_shift, noise_texturize,
+  # subtle_noise, shadow_cast, lines_degradation, bleed_through,
+  # markup, scribbles, jpeg
+  train_aug_ops: [all]       # list of op names (Albumentations/Augraphy) or [all]
+  valid_aug_ops: [all]          # Albumentations/Augraphy ops for validation dataset
+  valid_tta_ops: [rotate]    # ops applied for validation TTA
+  test_tta_ops: [rotate]     # ops applied for inference TTA
+  train_aug_add_org: false    # add original image to train augmented images
+  valid_aug_add_org: false    # add original image to valid augmented images
+  valid_tta_add_org: false    # add original image to valid tta images
+  test_tta_add_org: false     # add original image to test tta images
+  # valid_predefine_tta: false
+  # test_predefine_tta: false
+
+# Validation configuration
+validation:
+  # Validation strategy: "holdout", "kfold", or "none"
+  strategy: "holdout"  # "holdout", "kfold", "none"
+  
+  # Holdout configuration
+  holdout:
+    train_ratio: 0.8
+    stratify: true
+    
+  # K-fold configuration
+  kfold:
+    n_splits: 5
+    stratify: true
+    
+  # Early stopping configuration
+  early_stopping:
+    enabled: true
+    patience: 10
+    min_delta: 0.001
+    monitor: "val_loss"  # "val_loss", "val_acc", "val_f1"
+    mode: "min"  # "min" for loss, "max" for accuracy/f1
+
+# Device configuration
+device: "cuda"  # "cuda" or "cpu" or "mps"
+
+# Output configuration
+output:
+  dir: "results"
+  filename: "pred.csv"
+
+# Model saving configuration
+model_save:
+  enabled: false
+  dir: "models"
+  save_best: false  # 최고 성능 모델 저장
+  save_last: false  # 마지막 에포크 모델 저장
+  wandb_artifact: false  # wandb 아티팩트로 등록
+
+# Random seed ensemble configuration
+random_seed_ensemble:
+  enabled: false
+  count: 1  # 시도할 랜덤 시드 개수 (training.seed부터 순차 증가)
+
+# W&B configuration
+wandb:
+  enabled: false
+  project: null
+  entity: null  # will be loaded from .env file
+  run_name: "jhryu_v6_augment"  # auto-generated if null
+  tags: []
+  notes: ""

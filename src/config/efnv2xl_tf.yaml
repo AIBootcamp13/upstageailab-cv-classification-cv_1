@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - config
+
+# EfficientNet v2 XL (TensorFlow weights)
+model:
+  name: "tf_efficientnetv2_xl"
+  num_classes: 17
+  pretrained: true
+
+train:
+  lr: 1e-3
+  epochs: 1
+  batch_size: 8
+  seed: 42
+
+data:
+  img_size: 224
+  num_workers: 0
+
+device: mps
+
+output:
+  filename: "pred_efnv2xl_tf.csv" 
