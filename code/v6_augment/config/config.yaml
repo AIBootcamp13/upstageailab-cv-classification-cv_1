@@ -155,5 +155,5 @@ wandb:
   project: null
   entity: null  # will be loaded from .env file
   run_name: "jhryu_v6_augment"  # auto-generated if null
-  tags: [jhryu]
+  tags: []
   notes: ""
