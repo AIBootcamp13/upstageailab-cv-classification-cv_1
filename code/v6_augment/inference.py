@@ -22,7 +22,13 @@ from data import ImageDataset, IndexedImageDataset, get_transforms
 def _predict_probs(model, loader, device):
     probs = []
     with torch.no_grad():
-        for image, _ in loader:
+        for batch in loader:
+            # AugmentedDataset인 경우 (image, target, base_idx) 3개 값, 일반적인 경우 (image, target) 2개 값
+            if len(batch) == 3:
+                image, _, _ = batch  # target과 base_idx 무시
+            else:
+                image, _ = batch  # target 무시
+                
             image = image.to(device)
             logits = model(image)
             probs.append(logits.softmax(dim=1).cpu().numpy())
@@ -205,7 +211,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
     """추론 실행 및 결과 저장"""
     # 추론 실행
     if is_kfold:
-        aug_cfg = getattr(cfg, "augmentation", {})
+        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_kfold_ensemble(
             models_or_model,
             test_loader,
@@ -215,7 +221,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
         )
     else:
-        aug_cfg = getattr(cfg, "augmentation", {})
+        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_single_model(
             models_or_model,
             test_loader,

@@ -19,3 +19,5 @@ train.csv
 .env
 wandb/
 outputs/
+augraphy_cache/
+fonts/

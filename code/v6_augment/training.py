@@ -34,6 +34,7 @@ from data import (
     get_transforms,
     ImageDataset,
     IndexedImageDataset,
+    AugmentedDataset,
 )
 from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
 from utils import EarlyStopping
@@ -49,7 +50,13 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device, scaler=None):
     use_amp = scaler is not None
 
     pbar = tqdm(loader)
-    for image, targets in pbar:
+    for batch in pbar:
+        # AugmentedDataset인 경우 (image, target, base_idx) 3개 값, 일반적인 경우 (image, target) 2개 값
+        if len(batch) == 3:
+            image, targets, _ = batch  # base_idx 무시
+        else:
+            image, targets = batch
+            
         image = image.to(device)
         targets = targets.to(device)
 
@@ -92,7 +99,13 @@ def _predict_probs(model, loader, device):
     """데이터 로더에 대한 소프트맥스 확률 반환"""
     probs = []
     with torch.no_grad():
-        for images, _ in loader:
+        for batch in loader:
+            # AugmentedDataset인 경우 (image, target, base_idx) 3개 값, 일반적인 경우 (image, target) 2개 값
+            if len(batch) == 3:
+                images, _, _ = batch  # target과 base_idx 무시
+            else:
+                images, _ = batch  # target 무시
+                
             images = images.to(device)
             logits = model(images)
             probs.append(logits.softmax(dim=1).cpu().numpy())
@@ -100,6 +113,12 @@ def _predict_probs(model, loader, device):
 
 
 def _clone_dataset_with_transform(dataset, transform):
+    # AugmentedDataset인 경우 base_dataset을 사용
+    if hasattr(dataset, "base_dataset"):
+        base_dataset = dataset.base_dataset
+        if hasattr(base_dataset, "df") and hasattr(base_dataset, "path"):
+            return IndexedImageDataset(base_dataset.df.copy(), base_dataset.path, transform=transform)
+    
     if hasattr(dataset, "df") and hasattr(dataset, "path"):
         if isinstance(dataset, ImageDataset):
             df = pd.DataFrame(dataset.df, columns=["ID", "target"])
@@ -117,7 +136,13 @@ def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_c
 
     base_probs_list = []
     with torch.no_grad():
-        for image, targets in tqdm(loader, desc="Validating"):
+        for batch in tqdm(loader, desc="Validating"):
+            # AugmentedDataset인 경우 (image, target, base_idx) 3개 값, 일반적인 경우 (image, target) 2개 값
+            if len(batch) == 3:
+                image, targets, _ = batch  # base_idx 무시
+            else:
+                image, targets = batch
+                
             image = image.to(device)
             targets = targets.to(device)
 

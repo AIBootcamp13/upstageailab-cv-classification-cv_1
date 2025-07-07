@@ -110,6 +110,27 @@ class AugmentedDataset(Dataset):
         # base_dataset에서 원본 이미지 로드 (transform 없이)
         original_image, target = self.base_dataset[base_idx]
 
+        # 디버깅을 위한 타입 체크
+        # print(f"DEBUG: original_image type: {type(original_image)}")
+        # if isinstance(original_image, dict):
+        #     print(f"DEBUG: dict keys: {original_image.keys()}")
+
+        # original_image가 이미 dict 형태라면 'image' 키의 값을 사용
+        if isinstance(original_image, dict):
+            original_image = original_image['image']
+        
+        # original_image가 tensor라면 numpy로 변환
+        import torch
+        if isinstance(original_image, torch.Tensor):
+            original_image = original_image.permute(1, 2, 0).cpu().numpy()  # (C, H, W) -> (H, W, C)
+            # normalize를 되돌리기 (approximate)
+            original_image = original_image * 255.0
+            original_image = np.clip(original_image, 0, 255).astype(np.uint8)
+
+        # 최종 체크: 여전히 numpy array가 아니라면 에러 발생
+        if not isinstance(original_image, np.ndarray):
+            raise ValueError(f"Expected numpy array, got {type(original_image)}: {original_image}")
+
         # 원본 이미지 처리 (마지막 패스)
         if self.add_org and aug_idx == self.num_aug:
             image = self.org_transform(image=original_image)['image']
@@ -194,9 +215,9 @@ def _create_augraphy_lambda(intensity: float, ops: list[str] | None = None):
 
         def _aug(image, **_):
             try:
-                return {"image": pipeline(image)}
+                return pipeline(image)
             except Exception:
-                return {"image": image}
+                return image
 
         return A.Lambda(image=_aug)
     except Exception:
@@ -290,7 +311,7 @@ def get_transforms(cfg, ops_key: str | None):
         ops_key: Key for augmentation ops. If None, 
                 returns basic transforms only (resize, normalize, totensor)
     """
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
     method = getattr(aug_cfg, "method", "none").lower()
     intensity = float(getattr(aug_cfg, "intensity", 0))
 

@@ -67,7 +67,7 @@ def test_predict_single_model_tta():
         Image.new('RGB', (32, 32), color='white').save(os.path.join(img_dir, name))
     cfg = OmegaConf.create({
         'data': {'img_size': 32}, 
-        'augmentation': {
+        'augment': {
             'method': 'albumentations', 
             'intensity': 0.5,
             'test_tta_ops': ['rotate']
@@ -113,7 +113,7 @@ def test_predict_single_model_tta_add_org():
 
 
 def test_get_transforms_many_ops():
-    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augment': {'method': 'albumentations', 'intensity': 1.0}})
     train_t = get_transforms(cfg, 'train_aug_ops')
     assert len(train_t.transforms) > 30
 
@@ -126,7 +126,7 @@ def test_get_transforms_basic():
 
 def test_custom_ops_selection():
     cfg = OmegaConf.create({'data': {'img_size': 32},
-                            'augmentation': {'method': 'albumentations',
+                            'augment': {'method': 'albumentations',
                                              'intensity': 1.0,
                                              'train_aug_ops': ['rotate']}})
     train_t = get_transforms(cfg, 'train_aug_ops')
@@ -137,7 +137,7 @@ def test_custom_ops_selection():
 
 
 def test_new_ops_present():
-    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'albumentations', 'intensity': 1.0}})
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augment': {'method': 'albumentations', 'intensity': 1.0}})
     train_t = get_transforms(cfg, 'train_aug_ops')
     names = [type(t).__name__ for t in train_t.transforms]
     assert any('RandomSunFlare' in n for n in names)
@@ -148,7 +148,7 @@ def test_get_transforms_augraphy_lambda():
     import importlib
     if importlib.util.find_spec('augraphy') is None:
         pytest.skip('augraphy not installed')
-    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augmentation': {'method': 'augraphy', 'intensity': 1.0}})
+    cfg = OmegaConf.create({'data': {'img_size': 32}, 'augment': {'method': 'augraphy', 'intensity': 1.0}})
     train_t = get_transforms(cfg, 'train_aug_ops')
     assert any(isinstance(t, A.Lambda) for t in train_t.transforms)
 
@@ -158,7 +158,7 @@ def test_custom_augraphy_ops():
     if importlib.util.find_spec('augraphy') is None:
         pytest.skip('augraphy not installed')
     cfg = OmegaConf.create({'data': {'img_size': 32},
-                            'augmentation': {'method': 'augraphy',
+                            'augment': {'method': 'augraphy',
                                              'intensity': 1.0,
                                              'train_aug_ops': ['ink_bleed']}})
     train_t = get_transforms(cfg, 'train_aug_ops')
