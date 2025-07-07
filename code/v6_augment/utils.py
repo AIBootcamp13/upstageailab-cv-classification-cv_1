@@ -72,14 +72,106 @@ def setup_wandb(cfg):
     """wandb 초기화"""
     if cfg.wandb.enabled:
         wandb_config = {
-            "learning_rate": cfg.training.lr,
-            "epochs": cfg.training.epochs,
-            "batch_size": cfg.training.batch_size,
+            # Data configuration
+            "data_train_images_path": cfg.data.train_images_path,
+            "data_test_images_path": cfg.data.test_images_path,
+            "data_train_csv_path": cfg.data.train_csv_path,
+            "data_test_csv_path": cfg.data.test_csv_path,
+            "data_img_size": cfg.data.img_size,
+            "data_num_workers": cfg.data.num_workers,
+            
+            # Model configuration
             "model_name": cfg.model.name,
-            "img_size": cfg.data.img_size,
-            "seed": cfg.training.seed,
-            "num_classes": cfg.model.num_classes,
-            "pretrained": cfg.model.pretrained,
+            "model_num_classes": cfg.model.num_classes,
+            "model_pretrained": cfg.model.pretrained,
+            
+            # Training configuration
+            "train_lr": cfg.training.lr,
+            "train_epochs": cfg.training.epochs,
+            "train_batch_size": cfg.training.batch_size,
+            "train_seed": cfg.training.seed,
+            
+            # Label Smoothing
+            "label_smoothing_enabled": cfg.training.label_smoothing.enabled,
+            "label_smoothing_smoothing": cfg.training.label_smoothing.smoothing,
+            
+            # Mixed Precision
+            "mixed_precision_enabled": cfg.training.mixed_precision.enabled,
+            
+            # Data Augmentation
+            "augment_method": cfg.training.augmentation.method,
+            "augment_intensity": cfg.training.augmentation.intensity,
+            "augment_train_aug_count": cfg.training.augmentation.train_aug_count,
+            "augment_valid_aug_count": cfg.training.augmentation.valid_aug_count,
+            "augment_valid_tta_count": cfg.training.augmentation.valid_tta_count,
+            "augment_test_tta_count": cfg.training.augmentation.test_tta_count,
+            "augment_train_aug_ops": cfg.training.augmentation.train_aug_ops,
+            "augment_valid_aug_ops": cfg.training.augmentation.valid_aug_ops,
+            "augment_valid_tta_ops": cfg.training.augmentation.valid_tta_ops,
+            "augment_test_tta_ops": cfg.training.augmentation.test_tta_ops,
+            "augment_train_aug_add_org": cfg.training.augmentation.train_aug_add_org,
+            "augment_valid_aug_add_org": cfg.training.augmentation.valid_aug_add_org,
+            "augment_valid_tta_add_org": cfg.training.augmentation.valid_tta_add_org,
+            "augment_test_tta_add_org": cfg.training.augmentation.test_tta_add_org,
+            
+            # Scheduler
+            "scheduler_enabled": cfg.training.scheduler.enabled,
+            "scheduler_name": cfg.training.scheduler.name,
+            # "scheduler_cosine_T_max": cfg.training.scheduler.cosine.T_max,
+            # "scheduler_cosine_eta_min": cfg.training.scheduler.cosine.eta_min,
+            # "scheduler_cosine_last_epoch": cfg.training.scheduler.cosine.last_epoch,
+            # "scheduler_step_step_size": cfg.training.scheduler.step.step_size,
+            # "scheduler_step_gamma": cfg.training.scheduler.step.gamma,
+            # "scheduler_step_last_epoch": cfg.training.scheduler.step.last_epoch,
+            # "scheduler_plateau_mode": cfg.training.scheduler.plateau.mode,
+            # "scheduler_plateau_factor": cfg.training.scheduler.plateau.factor,
+            # "scheduler_plateau_patience": cfg.training.scheduler.plateau.patience,
+            # "scheduler_plateau_threshold": cfg.training.scheduler.plateau.threshold,
+            # "scheduler_plateau_threshold_mode": cfg.training.scheduler.plateau.threshold_mode,
+            # "scheduler_plateau_cooldown": cfg.training.scheduler.plateau.cooldown,
+            # "scheduler_plateau_min_lr": cfg.training.scheduler.plateau.min_lr,
+            # "scheduler_plateau_eps": cfg.training.scheduler.plateau.eps,
+            # "scheduler_cosine_warm_T_0": cfg.training.scheduler.cosine_warm.T_0,
+            # "scheduler_cosine_warm_T_mult": cfg.training.scheduler.cosine_warm.T_mult,
+            # "scheduler_cosine_warm_eta_min": cfg.training.scheduler.cosine_warm.eta_min,
+            # "scheduler_cosine_warm_last_epoch": cfg.training.scheduler.cosine_warm.last_epoch,
+            
+            # Validation configuration
+            "val_strategy": cfg.validation.strategy,
+            "val_holdout_train_ratio": cfg.validation.holdout.train_ratio,
+            "val_holdout_stratify": cfg.validation.holdout.stratify,
+            "val_kfold_n_splits": cfg.validation.kfold.n_splits,
+            "val_kfold_stratify": cfg.validation.kfold.stratify,
+            "val_early_stopping_enabled": cfg.validation.early_stopping.enabled,
+            "val_early_stopping_patience": cfg.validation.early_stopping.patience,
+            "val_early_stopping_min_delta": cfg.validation.early_stopping.min_delta,
+            "val_early_stopping_monitor": cfg.validation.early_stopping.monitor,
+            "val_early_stopping_mode": cfg.validation.early_stopping.mode,
+            
+            # Device configuration
+            "device": cfg.device,
+            
+            # Output configuration
+            "output_dir": cfg.output.dir,
+            "output_filename": cfg.output.filename,
+            
+            # Model saving configuration
+            "model_save_enabled": cfg.model_save.enabled,
+            # "model_save_dir": cfg.model_save.dir,
+            # "model_save_save_best": cfg.model_save.save_best,
+            # "model_save_save_last": cfg.model_save.save_last,
+            # "model_save_wandb_artifact": cfg.model_save.wandb_artifact,
+            
+            # Random seed ensemble configuration
+            "random_seed_ensemble_enabled": cfg.random_seed_ensemble.enabled,
+            "random_seed_ensemble_count": cfg.random_seed_ensemble.count,
+            
+            # W&B configuration
+            # "wandb_project": cfg.wandb.project,
+            # "wandb_entity": cfg.wandb.entity,
+            # "wandb_run_name": cfg.wandb.run_name,
+            # "wandb_tags": cfg.wandb.tags,
+            # "wandb_notes": cfg.wandb.notes,
         }
         
         # .env 파일에서 wandb 설정 불러오기
