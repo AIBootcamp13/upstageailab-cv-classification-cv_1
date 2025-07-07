@@ -94,7 +94,7 @@ class TestModelAndOptimizerSetup:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'scheduler': {
                     'enabled': False
@@ -129,7 +129,7 @@ class TestModelAndOptimizerSetup:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 10,
                 'scheduler': {
@@ -161,7 +161,7 @@ class TestModelAndOptimizerSetup:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'scheduler': {
                     'enabled': False
@@ -394,7 +394,7 @@ class TestModelIntegration:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'scheduler': {
                     'enabled': False
@@ -500,7 +500,7 @@ class TestLabelSmoothing:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'label_smoothing': {
                     'enabled': True,
@@ -522,7 +522,7 @@ class TestLabelSmoothing:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'label_smoothing': {
                     'enabled': False,
@@ -586,7 +586,7 @@ class TestMixedPrecisionConfig:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'label_smoothing': {
                     'enabled': False,
@@ -620,7 +620,7 @@ class TestMixedPrecisionConfig:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'label_smoothing': {
                     'enabled': False,
@@ -654,7 +654,7 @@ class TestMixedPrecisionConfig:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'label_smoothing': {
                     'enabled': True,

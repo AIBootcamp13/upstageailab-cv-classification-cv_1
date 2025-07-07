@@ -8,7 +8,7 @@ model:
   num_classes: 17
   pretrained: false  # 사전훈련 가중치 없음
 
-training:
+train:
   lr: 1e-3
   epochs: 1
   batch_size: 8

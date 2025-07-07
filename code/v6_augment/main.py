@@ -44,7 +44,7 @@ def main(cfg: DictConfig) -> None:
     log.info(f"\n{OmegaConf.to_yaml(cfg)}")
     
     # 시드 고정
-    set_seed(cfg.training.seed)
+    set_seed(cfg.train.seed)
     
     # wandb 초기화
     setup_wandb(cfg)
@@ -63,7 +63,7 @@ def main(cfg: DictConfig) -> None:
         ensemble_count = int(seed_ensemble_cfg.get("count", 1))
         all_probs = []
         for idx in range(ensemble_count):
-            current_seed = cfg.training.seed + idx
+            current_seed = cfg.train.seed + idx
             log.info(f"=== Random seed ensemble {idx + 1}/{ensemble_count} - seed {current_seed} ===")
 
             set_seed(current_seed)
@@ -88,9 +88,9 @@ def main(cfg: DictConfig) -> None:
                     models,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0),
-                    tta_add_org=getattr(getattr(cfg, "augmentation", {}), "test_tta_add_org", False),
+                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augment", {}), "test_tta_count", 0) > 0 else None,
+                    tta_count=getattr(getattr(cfg, "augment", {}), "test_tta_count", 0),
+                    tta_add_org=getattr(getattr(cfg, "augment", {}), "test_tta_add_org", False),
                     return_probs=True,
                 )
             else:
@@ -110,9 +110,9 @@ def main(cfg: DictConfig) -> None:
                     model,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augmentation", {}), "test_tta_count", 0),
-                    tta_add_org=getattr(getattr(cfg, "augmentation", {}), "test_tta_add_org", False),
+                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augment", {}), "test_tta_count", 0) > 0 else None,
+                    tta_count=getattr(getattr(cfg, "augment", {}), "test_tta_count", 0),
+                    tta_add_org=getattr(getattr(cfg, "augment", {}), "test_tta_add_org", False),
                     return_probs=True,
                 )
 
@@ -126,7 +126,7 @@ def main(cfg: DictConfig) -> None:
     else:
         # 2. 데이터 준비
         log.info("=== 데이터 준비 ===")
-        train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(cfg, cfg.training.seed)
+        train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(cfg, cfg.train.seed)
 
         if kfold_data is not None:
             log.info(f"K-Fold 데이터 준비 완료 - {len(kfold_data[0])}개 fold")

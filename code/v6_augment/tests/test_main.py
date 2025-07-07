@@ -82,7 +82,7 @@ class TestMainPipeline:
                 'pretrained': False,
                 'num_classes': 3
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 1,
                 'batch_size': 4,
@@ -139,7 +139,7 @@ model:
   name: resnet18
   pretrained: false
   num_classes: 3
-training:
+train:
   lr: 0.01
   epochs: 1
   batch_size: 4
@@ -332,7 +332,7 @@ class TestModuleIntegration:
                 'pretrained': False,
                 'num_classes': 3
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 1,
                 'batch_size': 4,
@@ -366,11 +366,11 @@ class TestModuleIntegration:
     def test_data_to_training_integration(self):
         """데이터 준비 → 학습 모듈 통합 테스트"""
         # 시드 설정
-        set_seed(self.cfg.training.seed)
+        set_seed(self.cfg.train.seed)
         
         # 데이터 준비
         train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
-            self.cfg, self.cfg.training.seed
+            self.cfg, self.cfg.train.seed
         )
         
         # 데이터 로더 검증
@@ -395,11 +395,11 @@ class TestModuleIntegration:
     def test_training_to_inference_integration(self):
         """학습 → 추론 모듈 통합 테스트"""
         # 시드 설정
-        set_seed(self.cfg.training.seed)
+        set_seed(self.cfg.train.seed)
         
         # 데이터 준비
         train_loader, val_loader, test_loader, _ = prepare_data_loaders(
-            self.cfg, self.cfg.training.seed
+            self.cfg, self.cfg.train.seed
         )
         
         # 디바이스 설정
@@ -427,11 +427,11 @@ class TestModuleIntegration:
     def test_full_pipeline_integration(self):
         """전체 파이프라인 통합 테스트"""
         # 시드 설정
-        set_seed(self.cfg.training.seed)
+        set_seed(self.cfg.train.seed)
         
         # 1. 데이터 준비
         train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
-            self.cfg, self.cfg.training.seed
+            self.cfg, self.cfg.train.seed
         )
         
         # 2. 디바이스 설정
@@ -461,11 +461,11 @@ class TestModuleIntegration:
         self.cfg.validation.kfold.n_splits = 2
         
         # 시드 설정
-        set_seed(self.cfg.training.seed)
+        set_seed(self.cfg.train.seed)
         
         # 1. 데이터 준비
         train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(
-            self.cfg, self.cfg.training.seed
+            self.cfg, self.cfg.train.seed
         )
         
         # K-Fold 데이터 검증
@@ -504,7 +504,7 @@ class TestErrorHandling:
         with pytest.raises(Exception):
             cfg = OmegaConf.create({
                 'model': {'name': 'invalid_model'},
-                'training': {'lr': 0.01},
+                'train': {'lr': 0.01},
                 'device': 'cpu'
             })
             device = get_device(cfg)
@@ -524,7 +524,7 @@ class TestErrorHandling:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'training': {'batch_size': 4, 'seed': 42},
+            'train': {'batch_size': 4, 'seed': 42},
             'validation': {'strategy': 'holdout'}
         })
         

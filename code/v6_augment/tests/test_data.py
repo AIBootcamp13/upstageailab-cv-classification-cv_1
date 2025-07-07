@@ -218,7 +218,7 @@ class TestDataLoaderPreparation:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'training': {
+            'train': {
                 'batch_size': 8,
                 'seed': 42
             },
@@ -255,7 +255,7 @@ class TestDataLoaderPreparation:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'training': {
+            'train': {
                 'batch_size': 8,
                 'seed': 42
             },
@@ -296,7 +296,7 @@ class TestDataLoaderPreparation:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'training': {
+            'train': {
                 'batch_size': 8,
                 'seed': 42
             },
@@ -354,7 +354,7 @@ class TestKFoldLoaders:
         
         # 설정 객체
         self.cfg = OmegaConf.create({
-            'training': {'batch_size': 8},
+            'train': {'batch_size': 8},
             'data': {'num_workers': 0, 'img_size': 32}
         })
     

@@ -18,7 +18,7 @@ model:
   pretrained: false  # 빠른 테스트를 위해 false
 
 # Training configuration
-training:
+train:
   lr: 1e-3
   epochs: 2  # 짧은 테스트
   batch_size: 16

@@ -8,7 +8,7 @@ model:
   num_classes: 17
   pretrained: true
 
-training:
+train:
   lr: 1e-3
   epochs: 1
   batch_size: 16

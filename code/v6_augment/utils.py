@@ -86,37 +86,37 @@ def setup_wandb(cfg):
             "model_pretrained": cfg.model.pretrained,
             
             # Training configuration
-            "train_lr": cfg.training.lr,
-            "train_epochs": cfg.training.epochs,
-            "train_batch_size": cfg.training.batch_size,
-            "train_seed": cfg.training.seed,
+            "train_lr": cfg.train.lr,
+            "train_epochs": cfg.train.epochs,
+            "train_batch_size": cfg.train.batch_size,
+            "train_seed": cfg.train.seed,
             
             # Label Smoothing
-            "label_smoothing_enabled": cfg.training.label_smoothing.enabled,
-            "label_smoothing_smoothing": cfg.training.label_smoothing.smoothing,
+            "label_smoothing_enabled": cfg.train.label_smoothing.enabled,
+            "label_smoothing_smoothing": cfg.train.label_smoothing.smoothing,
             
             # Mixed Precision
-            "mixed_precision_enabled": cfg.training.mixed_precision.enabled,
+            "mixed_precision_enabled": cfg.train.mixed_precision.enabled,
             
             # Data Augmentation
-            "augment_method": cfg.training.augmentation.method,
-            "augment_intensity": cfg.training.augmentation.intensity,
-            "augment_train_aug_count": cfg.training.augmentation.train_aug_count,
-            "augment_valid_aug_count": cfg.training.augmentation.valid_aug_count,
-            "augment_valid_tta_count": cfg.training.augmentation.valid_tta_count,
-            "augment_test_tta_count": cfg.training.augmentation.test_tta_count,
-            "augment_train_aug_ops": cfg.training.augmentation.train_aug_ops,
-            "augment_valid_aug_ops": cfg.training.augmentation.valid_aug_ops,
-            "augment_valid_tta_ops": cfg.training.augmentation.valid_tta_ops,
-            "augment_test_tta_ops": cfg.training.augmentation.test_tta_ops,
-            "augment_train_aug_add_org": cfg.training.augmentation.train_aug_add_org,
-            "augment_valid_aug_add_org": cfg.training.augmentation.valid_aug_add_org,
-            "augment_valid_tta_add_org": cfg.training.augmentation.valid_tta_add_org,
-            "augment_test_tta_add_org": cfg.training.augmentation.test_tta_add_org,
+            "augment_method": cfg.augment.method,
+            "augment_intensity": cfg.augment.intensity,
+            "augment_train_aug_count": cfg.augment.train_aug_count,
+            "augment_valid_aug_count": cfg.augment.valid_aug_count,
+            "augment_valid_tta_count": cfg.augment.valid_tta_count,
+            "augment_test_tta_count": cfg.augment.test_tta_count,
+            "augment_train_aug_ops": cfg.augment.train_aug_ops,
+            "augment_valid_aug_ops": cfg.augment.valid_aug_ops,
+            "augment_valid_tta_ops": cfg.augment.valid_tta_ops,
+            "augment_test_tta_ops": cfg.augment.test_tta_ops,
+            "augment_train_aug_add_org": cfg.augment.train_aug_add_org,
+            "augment_valid_aug_add_org": cfg.augment.valid_aug_add_org,
+            "augment_valid_tta_add_org": cfg.augment.valid_tta_add_org,
+            "augment_test_tta_add_org": cfg.augment.test_tta_add_org,
             
             # Scheduler
-            "scheduler_enabled": cfg.training.scheduler.enabled,
-            "scheduler_name": cfg.training.scheduler.name,
+            "scheduler_enabled": cfg.train.scheduler.enabled,
+            "scheduler_name": cfg.train.scheduler.name,
             # "scheduler_cosine_T_max": cfg.training.scheduler.cosine.T_max,
             # "scheduler_cosine_eta_min": cfg.training.scheduler.cosine.eta_min,
             # "scheduler_cosine_last_epoch": cfg.training.scheduler.cosine.last_epoch,
@@ -220,7 +220,7 @@ def get_device(cfg):
 def log_hyperparameters(cfg):
     """하이퍼파라미터 로깅"""
     log.info(f"하이퍼파라미터 설정 - 모델: {cfg.model.name}, 이미지 크기: {cfg.data.img_size}, "
-             f"학습률: {cfg.training.lr}, 에포크: {cfg.training.epochs}, 배치 크기: {cfg.training.batch_size}")
+             f"학습률: {cfg.train.lr}, 에포크: {cfg.train.epochs}, 배치 크기: {cfg.train.batch_size}")
 
 
 def save_model_as_artifact(model_path, cfg, model_type="best", metadata=None):

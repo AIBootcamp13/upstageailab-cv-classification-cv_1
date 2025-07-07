@@ -15,7 +15,7 @@ model:
   pretrained: false
 
 # Training configuration
-training:
+train:
   lr: 1e-3
   epochs: 10
   batch_size: 32

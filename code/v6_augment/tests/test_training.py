@@ -198,7 +198,7 @@ class TestTrainSingleModel:
                 'pretrained': False,
                 'num_classes': 3
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 2
             },
@@ -268,7 +268,7 @@ class TestTrainKFoldModels:
                 'pretrained': False,
                 'num_classes': 3
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 1,
                 'batch_size': 4
@@ -350,7 +350,7 @@ class TestTrainingIntegration:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 1
             }
@@ -503,7 +503,7 @@ class TestMixedPrecisionTraining:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 1,
                 'label_smoothing': {
@@ -563,7 +563,7 @@ class TestMixedPrecisionTraining:
                 'pretrained': False,
                 'num_classes': 10
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 1,
                 'label_smoothing': {

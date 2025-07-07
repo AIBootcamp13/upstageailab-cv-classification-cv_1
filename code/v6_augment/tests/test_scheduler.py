@@ -37,7 +37,7 @@ class TestCreateScheduler:
     def test_create_scheduler_disabled(self):
         """스케쥴러 비활성화 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': False
                 }
@@ -50,7 +50,7 @@ class TestCreateScheduler:
     def test_create_scheduler_cosine(self):
         """CosineAnnealingLR 스케쥴러 생성 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'epochs': 50,
                 'scheduler': {
                     'enabled': True,
@@ -73,7 +73,7 @@ class TestCreateScheduler:
     def test_create_scheduler_step(self):
         """StepLR 스케쥴러 생성 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': True,
                     'name': 'step',
@@ -95,7 +95,7 @@ class TestCreateScheduler:
     def test_create_scheduler_plateau(self):
         """ReduceLROnPlateau 스케쥴러 생성 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': True,
                     'name': 'plateau',
@@ -123,7 +123,7 @@ class TestCreateScheduler:
     def test_create_scheduler_cosine_warm(self):
         """CosineAnnealingWarmRestarts 스케쥴러 생성 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': True,
                     'name': 'cosine_warm',
@@ -147,7 +147,7 @@ class TestCreateScheduler:
     def test_create_scheduler_none(self):
         """스케쥴러 'none' 설정 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': True,
                     'name': 'none'
@@ -161,7 +161,7 @@ class TestCreateScheduler:
     def test_create_scheduler_invalid_name(self):
         """잘못된 스케쥴러 이름 테스트"""
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'enabled': True,
                     'name': 'invalid_scheduler'
@@ -188,7 +188,7 @@ class TestSetupModelAndOptimizer:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 10,
                 'scheduler': {
@@ -220,7 +220,7 @@ class TestSetupModelAndOptimizer:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'scheduler': {
                     'enabled': False
@@ -243,7 +243,7 @@ class TestSetupModelAndOptimizer:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'scheduler': {
                     'enabled': False
@@ -380,7 +380,7 @@ class TestUpdateScheduler:
         scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=0)
         
         cfg = OmegaConf.create({
-            'training': {
+            'train': {
                 'scheduler': {
                     'plateau': {
                         'mode': 'min'
@@ -443,7 +443,7 @@ class TestSchedulerIntegration:
                 'pretrained': False,
                 'num_classes': 5
             },
-            'training': {
+            'train': {
                 'lr': 0.01,
                 'epochs': 10,
                 'scheduler': {
@@ -534,7 +534,7 @@ class TestSchedulerIntegration:
                     'pretrained': False,
                     'num_classes': 5
                 },
-                'training': {
+                'train': {
                     'lr': 0.001,
                     'epochs': 10,
                     'scheduler': {

@@ -20,7 +20,7 @@ validation:
     mode: "min"
 
 # Training configuration
-training:
+train:
   lr: 1e-3
   epochs: 3  # 빠른 테스트용으로 적은 epoch
   batch_size: 32

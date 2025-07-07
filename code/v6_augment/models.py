@@ -71,7 +71,7 @@ def create_model(model_name, pretrained=True, num_classes=17):
 
 def create_scheduler(optimizer, cfg):
     """설정에 따라 스케쥴러 생성"""
-    sched_cfg = getattr(cfg.training, "scheduler", {"enabled": False, "name": "none"})
+    sched_cfg = getattr(cfg.train, "scheduler", {"enabled": False, "name": "none"})
     if not sched_cfg.get("enabled", False):
         return None
 
@@ -81,7 +81,7 @@ def create_scheduler(optimizer, cfg):
         cosine_cfg = sched_cfg.get("cosine", {})
         T_max = cosine_cfg.get("T_max", 100)
         if T_max == 100:
-            T_max = cfg.training.epochs
+            T_max = cfg.train.epochs
 
         scheduler = CosineAnnealingLR(
             optimizer,
@@ -145,10 +145,10 @@ def setup_model_and_optimizer(cfg, device):
         num_classes=cfg.model.num_classes
     ).to(device)
     
-    optimizer = Adam(model.parameters(), lr=cfg.training.lr)
+    optimizer = Adam(model.parameters(), lr=cfg.train.lr)
     
     # Label Smoothing Loss 또는 CrossEntropyLoss 선택
-    ls_cfg = getattr(cfg.training, "label_smoothing", {"enabled": False})
+    ls_cfg = getattr(cfg.train, "label_smoothing", {"enabled": False})
     if ls_cfg.get("enabled", False):
         loss_fn = LabelSmoothingLoss(
             num_classes=cfg.model.num_classes,

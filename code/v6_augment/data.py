@@ -332,7 +332,7 @@ def prepare_data_loaders(cfg, seed):
     train_csv_path = cfg.data.train_csv_path
     test_csv_path = cfg.data.test_csv_path
     
-    batch_size = cfg.training.batch_size
+    batch_size = cfg.train.batch_size
     num_workers = cfg.data.num_workers
 
     # Transform 준비
@@ -361,7 +361,7 @@ def prepare_data_loaders(cfg, seed):
     )
     
     # augmentation 설정
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
 
     # 검증 전략에 따른 데이터 분할
     validation_strategy = cfg.validation.strategy
@@ -431,9 +431,9 @@ def _prepare_holdout_loaders(cfg, full_train_df, train_images_path,
     """Holdout 검증을 위한 데이터 로더 준비"""
     train_ratio = cfg.validation.holdout.train_ratio
     stratify = cfg.validation.holdout.stratify
-    batch_size = cfg.training.batch_size
+    batch_size = cfg.train.batch_size
     num_workers = cfg.data.num_workers
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
     
     if stratify:
         train_df, val_df = train_test_split(
@@ -533,7 +533,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
     """특정 fold에 대한 데이터 로더 반환"""
     train_idx, val_idx = folds[fold_idx]
 
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
 
     # 원본 이미지용 transform (증강 없음)
     org_transform = get_transforms(cfg, None)  # Basic transforms only
@@ -588,7 +588,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
     # DataLoader 정의
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=cfg.training.batch_size, 
+        batch_size=cfg.train.batch_size, 
         shuffle=True, 
         num_workers=cfg.data.num_workers, 
         pin_memory=_should_use_pin_memory(), 
@@ -596,7 +596,7 @@ def get_kfold_loaders(fold_idx, folds, full_train_df, train_images_path,
     )
     val_loader = DataLoader(
         val_dataset, 
-        batch_size=cfg.training.batch_size, 
+        batch_size=cfg.train.batch_size, 
         shuffle=False, 
         num_workers=cfg.data.num_workers, 
         pin_memory=_should_use_pin_memory()

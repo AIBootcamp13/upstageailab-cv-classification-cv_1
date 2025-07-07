@@ -160,7 +160,7 @@ class TestSetupWandb:
                 'tags': ['test'],
                 'notes': 'test notes'
             },
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 10,
                 'batch_size': 32,
@@ -223,7 +223,7 @@ class TestSetupWandb:
                 'tags': [],
                 'notes': ''
             },
-            'training': {'lr': 0.001, 'epochs': 1, 'batch_size': 8, 'seed': 42},
+            'train': {'lr': 0.001, 'epochs': 1, 'batch_size': 8, 'seed': 42},
             'model': {'name': 'resnet18', 'num_classes': 10, 'pretrained': False},
             'data': {'img_size': 32}
         })
@@ -282,7 +282,7 @@ class TestLogHyperparameters:
         cfg = OmegaConf.create({
             'model': {'name': 'resnet34'},
             'data': {'img_size': 224},
-            'training': {
+            'train': {
                 'lr': 0.001,
                 'epochs': 50,
                 'batch_size': 64

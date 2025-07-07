@@ -173,7 +173,7 @@ def update_scheduler(scheduler, val_metrics=None, cfg=None):
     # ReduceLROnPlateau의 경우 검증 메트릭이 필요
     if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
         if val_metrics is not None and cfg is not None:
-            monitor_metric = cfg.training.scheduler.plateau.mode
+            monitor_metric = cfg.train.scheduler.plateau.mode
             if monitor_metric == "min":
                 # val_loss 기준
                 scheduler.step(val_metrics.get("val_loss", 0))
@@ -207,7 +207,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
     
     # Mixed Precision Training 설정
     scaler = None
-    mp_cfg = getattr(cfg.training, "mixed_precision", {"enabled": False})
+    mp_cfg = getattr(cfg.train, "mixed_precision", {"enabled": False})
     if mp_cfg.get("enabled", False) and AMP_AVAILABLE and device.type == "cuda":
         scaler = GradScaler()
         log.info("Mixed Precision Training 활성화")
@@ -226,7 +226,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
             mode=cfg.validation.early_stopping.mode
         )
 
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
     # TTA transform 준비
     train_transform = get_transforms(cfg, "train_aug_ops")
     
@@ -236,7 +236,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
     best_metric = None
     best_epoch = 0
     
-    for epoch in range(cfg.training.epochs):
+    for epoch in range(cfg.train.epochs):
         # 훈련
         train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
         ret = {**train_ret, 'epoch': epoch}
@@ -254,7 +254,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
             )
             ret.update(val_ret)
             
-            log_message = f"Epoch {epoch+1}/{cfg.training.epochs} 완료 - "
+            log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
             log_message += f"train_loss: {ret['train_loss']:.4f}, "
             log_message += f"train_acc: {ret['train_acc']:.4f}, "
             log_message += f"val_loss: {ret['val_loss']:.4f}, "
@@ -301,7 +301,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
                     save_model_with_metadata(model, best_model_path, metadata)
         else:
             # No validation
-            log_message = f"Epoch {epoch+1}/{cfg.training.epochs} 완료 - "
+            log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
             log_message += f"train_loss: {ret['train_loss']:.4f}, "
             log_message += f"train_acc: {ret['train_acc']:.4f}, "
             log_message += f"train_f1: {ret['train_f1']:.4f}"
@@ -357,7 +357,7 @@ def train_kfold_models(cfg, kfold_data, device):
     folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
     n_splits = len(folds)
     models = []
-    aug_cfg = getattr(cfg, "augmentation", {})
+    aug_cfg = getattr(cfg, "augment", {})
     
     for fold_idx, (train_idx, val_idx) in enumerate(folds):
         log.info(f"========== Fold {fold_idx + 1}/{n_splits} ==========")
@@ -378,7 +378,7 @@ def train_kfold_models(cfg, kfold_data, device):
         
         # Mixed Precision Training 설정 (fold별로 설정)
         scaler = None
-        mp_cfg = getattr(cfg.training, "mixed_precision", {"enabled": False})
+        mp_cfg = getattr(cfg.train, "mixed_precision", {"enabled": False})
         if mp_cfg.get("enabled", False) and AMP_AVAILABLE and device.type == "cuda":
             scaler = GradScaler()
             if fold_idx == 0:
@@ -405,7 +405,7 @@ def train_kfold_models(cfg, kfold_data, device):
         best_epoch = 0
         
         # 학습 시작
-        for epoch in range(cfg.training.epochs):
+        for epoch in range(cfg.train.epochs):
             # 훈련
             train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
             # 검증
@@ -422,7 +422,7 @@ def train_kfold_models(cfg, kfold_data, device):
             # 결과 합치기
             ret = {**train_ret, **val_ret, 'epoch': epoch, 'fold': fold_idx + 1}
             
-            log_message = f"Fold {fold_idx + 1} Epoch {epoch+1}/{cfg.training.epochs} 완료 - "
+            log_message = f"Fold {fold_idx + 1} Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
             log_message += f"train_loss: {ret['train_loss']:.4f}, "
             log_message += f"train_acc: {ret['train_acc']:.4f}, "
             log_message += f"val_loss: {ret['val_loss']:.4f}, "

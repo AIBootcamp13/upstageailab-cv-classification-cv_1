@@ -181,9 +181,10 @@ def upload_to_wandb(pred_df, cfg):
             description=f"Model predictions using {cfg.model.name}",
             metadata={
                 "model_name": cfg.model.name,
-                "epochs": cfg.training.epochs,
-                "batch_size": cfg.training.batch_size,
-                "learning_rate": cfg.training.lr,
+                "epochs": cfg.train.epochs,
+                "batch_size": cfg.train.batch_size,
+                "learning_rate": cfg.train.lr,
+                "seed": cfg.train.seed,
                 "img_size": cfg.data.img_size,
                 "num_predictions": len(pred_df),
                 "output_filename": cfg.output.filename,
