@@ -6,11 +6,9 @@ input/data/
 # 데이터 무시
 data/train/
 data/test/
-data/V1-augmented
-data/V2-augmented
-data/V3-augmented
-data/V4-augmented
-data/V5-augmented
+data/augment_csv
+data/augment_image
+data/submission
 data.tar.gz
 meta.csv
 sample_submission.csv
