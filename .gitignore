@@ -16,8 +16,13 @@ train.csv
 output/
 
 # Wandb 무시
-wandb/
+wandb/ 
+
+# model 무시
 model/
+
+# augraphy_cache 무시 
+augraphy_cache/
 
 # 개인 작업 중 추가되는 파일 무시
 *.yml
