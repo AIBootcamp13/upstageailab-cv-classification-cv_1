@@ -8,6 +8,10 @@ from omegaconf import OmegaConf
 from albumentations import Compose, Resize, Normalize
 from albumentations.pytorch import ToTensorV2
 
+# Add src directory to path
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from data import ImageDataset, AugmentedDataset, get_transforms
 from inference import predict_single_model
 
@@ -34,7 +38,7 @@ def test_augmented_dataset_len():
 def test_predict_single_model_tta():
     tmp = tempfile.mkdtemp()
     df, img_dir = _create_dummy_dataset(tmp, 4)
-    cfg = OmegaConf.create({"data": {"img_size": 32}, "augment": {"test_tta_enabled": True, "test_tta_count": 1}})
+    cfg = OmegaConf.create({"data": {"img_size": 32}, "augment": {"test_tta_enabled": True}})
     tta_t = get_transforms(cfg, "test")
     dataset = ImageDataset(df, img_dir, transform=tta_t)
     loader = DataLoader(dataset, batch_size=2)

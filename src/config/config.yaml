@@ -75,7 +75,6 @@ augment:
   train_aug_count: 1       # number of augmented copies per train image
   valid_aug_count: 0       # number of augmented copies per valid image
   test_tta_enabled: true   # apply TTA on test dataset
-  test_tta_count: 4        # number of TTA augmentations
 
 # Validation configuration
 validation:

@@ -185,19 +185,7 @@ class TestSetupWandb:
             'augment': {
                 'train_aug_count': 0,
                 'valid_aug_count': 0,
-                'test_tta_enabled': False,
-                'test_tta_count': 0,
-                'method': 'none',
-                'intensity': 0.0,
-                'valid_tta_count': 0,
-                'train_aug_ops': [],
-                'valid_aug_ops': [],
-                'valid_tta_ops': [],
-                'test_tta_ops': [],
-                'train_aug_add_org': False,
-                'valid_aug_add_org': False,
-                'valid_tta_add_org': False,
-                'test_tta_add_org': False
+                'test_tta_enabled': False
             },
             'validation': {
                 'strategy': 'none',
@@ -279,19 +267,7 @@ class TestSetupWandb:
             'augment': {
                 'train_aug_count': 0,
                 'valid_aug_count': 0,
-                'test_tta_enabled': False,
-                'test_tta_count': 0,
-                'method': 'none',
-                'intensity': 0.0,
-                'valid_tta_count': 0,
-                'train_aug_ops': [],
-                'valid_aug_ops': [],
-                'valid_tta_ops': [],
-                'test_tta_ops': [],
-                'train_aug_add_org': False,
-                'valid_aug_add_org': False,
-                'valid_tta_add_org': False,
-                'test_tta_add_org': False
+                'test_tta_enabled': False
             },
             'validation': {
                 'strategy': 'none',

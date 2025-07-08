@@ -31,7 +31,6 @@ augment:
   train_aug_count: 1         # number of augmented copies per image
   valid_aug_count: 1         # augmentation copies for validation dataset
   valid_tta_count: 1         # TTA count during validation
-  test_tta_count: 1          # TTA count during inference
   # Available Albumentations ops:
   # horizontal_flip, vertical_flip, random_rotate90, rotate, transpose,
   # shift_scale_rotate, optical_distortion, grid_distortion, elastic_transform,
