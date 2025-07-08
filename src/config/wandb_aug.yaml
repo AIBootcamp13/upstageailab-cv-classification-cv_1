@@ -36,7 +36,7 @@ augment:
 
 
 # Device configuration
-device: "mps"  # "cuda" or "cpu" or "mps"
+device: "auto"  # "cuda" or "cpu" or "mps" or "auto"
 
 wandb:
   enabled: true

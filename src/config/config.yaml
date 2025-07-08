@@ -100,7 +100,7 @@ valid:
     mode: "min"  # "min" for loss, "max" for accuracy/f1
 
 # Device configuration
-device: "cuda"  # "cuda" or "cpu" or "mps"
+device: "auto"  # "cuda" or "cpu" or "mps" or "auto"
 
 # Output configuration
 output:
