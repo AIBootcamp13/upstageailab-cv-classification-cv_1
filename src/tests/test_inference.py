@@ -87,6 +87,23 @@ class TestPredictSingleModel:
             # 항상 전체 데이터 개수와 일치해야 함
             assert len(predictions) == 20
 
+    @patch('inference.log')
+    def test_predict_single_model_with_tta(self, mock_log):
+        """TTA 사용 시 로그 메시지 확인"""
+        from augment import get_tta_transforms
+        
+        # TTA transforms 생성
+        tta_transforms = get_tta_transforms(32)
+        
+        predictions = predict_single_model(self.model, self.test_loader, self.device, tta_transforms=tta_transforms)
+        
+        # 반환값 확인
+        assert isinstance(predictions, list)
+        assert len(predictions) == 20
+        
+        # TTA 사용 시 로그 메시지 확인
+        mock_log.info.assert_called_with("추론 시작 (TTA)")
+
 
 class TestPredictKFoldEnsemble:
     """predict_kfold_ensemble 함수 테스트"""
@@ -155,6 +172,23 @@ class TestPredictKFoldEnsemble:
         # 모든 모델이 평가 모드로 변경되었는지 확인
         for model in self.models:
             assert not model.training
+
+    @patch('inference.log')
+    def test_predict_kfold_ensemble_with_tta(self, mock_log):
+        """TTA 사용 시 K-Fold 앙상블 로그 메시지 확인"""
+        from augment import get_tta_transforms
+        
+        # TTA transforms 생성
+        tta_transforms = get_tta_transforms(32)
+        
+        predictions = predict_kfold_ensemble(self.models, self.test_loader, self.device, tta_transforms=tta_transforms)
+        
+        # 반환값 확인
+        assert isinstance(predictions, np.ndarray)
+        assert len(predictions) == 15
+        
+        # TTA 사용 시 로그 메시지 확인 (첫 번째 호출)
+        mock_log.info.assert_any_call("K-Fold 앙상블 추론 시작 (TTA)")
 
 
 class TestSavePredictions:

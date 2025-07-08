@@ -88,7 +88,10 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, return
         tta_transforms: 리스트 형태의 TTA transforms
         return_probs: True면 소프트맥스 확률을 반환
     """
-    log.info("추론 시작")
+    if tta_transforms:
+        log.info("추론 시작 (TTA)")
+    else:
+        log.info("추론 시작")
 
     model.eval()
 
@@ -125,7 +128,10 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, ret
         tta_transforms: 리스트 형태의 TTA transforms
         return_probs: True면 fold 앙상블 확률을 반환
     """
-    log.info("K-Fold 앙상블 추론 시작")
+    if tta_transforms:
+        log.info("K-Fold 앙상블 추론 시작 (TTA)")
+    else:
+        log.info("K-Fold 앙상블 추론 시작")
     
     all_predictions = []
     
