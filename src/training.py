@@ -35,7 +35,12 @@ from data import (
     IndexedImageDataset,
     AugmentedDataset,
 )
-from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
+from models import (
+    setup_model_and_optimizer,
+    save_model_with_metadata,
+    get_model_save_path,
+    get_seed_fold_model_path,
+)
 from utils import EarlyStopping
 
 
@@ -203,7 +208,7 @@ def update_scheduler(scheduler, val_metrics=None, cfg=None):
     return None
 
 
-def train_single_model(cfg, train_loader, val_loader, device):
+def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool = False, seed: int | None = None, fold: int = 0):
     """단일 모델 학습 (Holdout 또는 No validation)"""
     model, optimizer, loss_fn, scheduler = setup_model_and_optimizer(cfg, device)
     
@@ -341,10 +346,30 @@ def train_single_model(cfg, train_loader, val_loader, device):
             })
         save_model_with_metadata(model, last_model_path, metadata)
     
+    if save_to_disk:
+        save_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold)
+        metadata = {
+            "epoch": epoch + 1,
+            "model_name": cfg.model.name,
+            "final_train_loss": ret["train_loss"],
+            "final_train_acc": ret["train_acc"],
+            "final_train_f1": ret["train_f1"],
+        }
+        if val_loader is not None:
+            metadata.update({
+                "final_val_loss": ret["val_loss"],
+                "final_val_acc": ret["val_acc"],
+                "final_val_f1": ret["val_f1"],
+            })
+        save_model_with_metadata(model, save_path, metadata)
+        del model
+        torch.cuda.empty_cache()
+        return save_path
+
     return model
 
 
-def train_kfold_models(cfg, kfold_data, device):
+def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed: int | None = None):
     """K-Fold 교차 검증 학습"""
     folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
     n_splits = len(folds)
@@ -482,7 +507,25 @@ def train_kfold_models(cfg, kfold_data, device):
             }
             save_model_with_metadata(model, last_model_path, metadata)
         
-        models.append(model)
+        if save_to_disk:
+            save_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold_idx + 1)
+            metadata = {
+                "fold": fold_idx + 1,
+                "epoch": epoch + 1,
+                "model_name": cfg.model.name,
+                "final_train_loss": ret['train_loss'],
+                "final_train_acc": ret['train_acc'],
+                "final_train_f1": ret['train_f1'],
+                "final_val_loss": ret['val_loss'],
+                "final_val_acc": ret['val_acc'],
+                "final_val_f1": ret['val_f1'],
+            }
+            save_model_with_metadata(model, save_path, metadata)
+            models.append(save_path)
+            del model
+            torch.cuda.empty_cache()
+        else:
+            models.append(model)
         log.info(f"Fold {fold_idx + 1} 완료")
-    
-    return models 
+
+    return models

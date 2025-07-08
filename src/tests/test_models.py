@@ -22,7 +22,9 @@ from models import (
     save_model_with_metadata,
     load_model_with_metadata,
     get_model_save_path,
-    get_model_info
+    get_seed_fold_model_path,
+    load_model_for_inference,
+    get_model_info,
 )
 
 
@@ -290,9 +292,43 @@ class TestModelSaveLoad:
                 'dir': self.temp_dir
             }
         })
-        
+
         path = get_model_save_path(cfg, "best")
         assert path is None
+
+
+class TestSeedFoldPath:
+    """시드 및 폴드 기반 경로 생성 및 로드 테스트"""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+
+    def teardown_method(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_get_seed_fold_model_path(self):
+        cfg = OmegaConf.create({
+            'model': {'name': 'resnet18'},
+            'model_save': {'enabled': True, 'dir': self.temp_dir}
+        })
+
+        path = get_seed_fold_model_path(cfg, seed=1, fold=2)
+        assert os.path.basename(path) == 'resnet18_seed1_fold2.pth'
+        assert os.path.dirname(path) == self.temp_dir
+
+    def test_load_model_for_inference(self):
+        cfg = OmegaConf.create({
+            'model': {'name': 'resnet18', 'num_classes': 3},
+            'model_save': {'enabled': True, 'dir': self.temp_dir}
+        })
+
+        model = create_model('resnet18', pretrained=False, num_classes=3)
+        save_path = get_seed_fold_model_path(cfg, seed=0, fold=1)
+        save_model_with_metadata(model, save_path, {'epoch': 1})
+
+        loaded = load_model_for_inference(cfg, save_path, torch.device('cpu'))
+        assert loaded is not None
+        assert isinstance(loaded, torch.nn.Module)
 
 
 class TestModelInfo:

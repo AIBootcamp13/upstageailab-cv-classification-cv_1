@@ -226,6 +226,33 @@ def get_model_save_path(cfg, model_type):
         return None
 
 
+def get_seed_fold_model_path(cfg, seed: int, fold: int) -> str:
+    """Return a model file path based on seed and fold."""
+    model_dir = getattr(cfg, "model_save", {}).get("dir", "models")
+    os.makedirs(model_dir, exist_ok=True)
+    model_name = cfg.model.name
+    filename = f"{model_name}_seed{seed}_fold{fold}.pth"
+    return os.path.join(model_dir, filename)
+
+
+def load_model_for_inference(cfg, path: str, device: torch.device):
+    """Load a saved model for inference."""
+    model = create_model(
+        cfg.model.name,
+        pretrained=False,
+        num_classes=cfg.model.num_classes,
+    ).to(device)
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    ckpt = torch.load(path, map_location=device)
+    if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
+        model.load_state_dict(ckpt["model_state_dict"])
+    else:
+        model.load_state_dict(ckpt)
+    return model
+
+
 def get_model_info(model):
     """모델 정보 반환"""
     total_params = sum(p.numel() for p in model.parameters())
