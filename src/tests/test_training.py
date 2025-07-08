@@ -303,7 +303,7 @@ class TestTrainKFoldModels:
         train_transform = None
         test_transform = None
         
-        self.kfold_data = (folds, full_train_df, data_path, train_transform, test_transform, test_transform)
+        self.kfold_data = (folds, full_train_df, data_path, train_transform, test_transform, test_transform, "/tmp/cache")
     
     @patch('training.get_kfold_loaders')
     @patch('training.log')

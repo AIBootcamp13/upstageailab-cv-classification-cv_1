@@ -16,7 +16,7 @@ import wandb
 import log_util as log
 import pandas as pd
 from torch.utils.data import DataLoader
-from data import ImageDataset, IndexedImageDataset, get_transforms
+from data import ImageDataset, IndexedImageDataset, get_transforms, CachedTransformDataset
 from augment import get_tta_transforms
 
 
@@ -36,13 +36,22 @@ def _predict_probs(model, loader, device):
     return np.concatenate(probs, axis=0)
 
 
-def _clone_dataset_with_transform(dataset, transform):
+def _clone_dataset_with_transform(dataset, transform, cache_info=None, tta_idx=1):
+    cache_root = None
+    seed = None
+    if cache_info is not None:
+        cache_root, seed = cache_info
+
     if hasattr(dataset, "df") and hasattr(dataset, "path"):
         if isinstance(dataset, ImageDataset):
-            df = pd.DataFrame(dataset.df, columns=["ID", "target"])
-            return ImageDataset(df, dataset.path, transform=transform)
-        if isinstance(dataset, IndexedImageDataset):
-            return IndexedImageDataset(dataset.df.copy(), dataset.path, transform=transform)
+            df = dataset.df if isinstance(dataset.df, pd.DataFrame) else pd.DataFrame(dataset.df, columns=["ID", "target"])
+            base = ImageDataset(df, dataset.path, transform=None, return_filename=True)
+        else:
+            base = IndexedImageDataset(dataset.df.copy(), dataset.path, transform=None, return_filename=True)
+
+        if cache_root and seed is not None:
+            return CachedTransformDataset(base, transform, cache_root, seed, tta_idx)
+        return type(base)(base.df, base.path, transform=transform)
 
     class WrappedDataset(torch.utils.data.Dataset):
         def __init__(self, base, tf):
@@ -61,10 +70,14 @@ def _clone_dataset_with_transform(dataset, transform):
             img = self.tf(image=img)["image"]
             return img, target
 
+    if cache_root and seed is not None:
+        # Without file names, caching is not possible, fallback
+        return WrappedDataset(dataset, transform)
+
     return WrappedDataset(dataset, transform)
 
 
-def predict_single_model(model, test_loader, device, tta_transforms=None, return_probs=False):
+def predict_single_model(model, test_loader, device, tta_transforms=None, return_probs=False, cache_info=None):
     """단일 모델로 추론
 
     Args:
@@ -80,8 +93,8 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, return
 
     if tta_transforms:
         tta_probs = []
-        for t in tta_transforms:
-            t_dataset = _clone_dataset_with_transform(test_loader.dataset, t)
+        for idx, t in enumerate(tta_transforms, start=1):
+            t_dataset = _clone_dataset_with_transform(test_loader.dataset, t, cache_info, idx)
             t_loader = DataLoader(
                 t_dataset,
                 batch_size=test_loader.batch_size,
@@ -101,7 +114,7 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, return
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, return_probs=False):
+def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, return_probs=False, cache_info=None):
     """K-Fold 모델들로 앙상블 추론
 
     Args:
@@ -122,8 +135,8 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, ret
 
         if tta_transforms:
             tta_probs = []
-            for t in tta_transforms:
-                t_dataset = _clone_dataset_with_transform(test_loader.dataset, t)
+            for idx_t, t in enumerate(tta_transforms, start=1):
+                t_dataset = _clone_dataset_with_transform(test_loader.dataset, t, cache_info, idx_t)
                 t_loader = DataLoader(
                     t_dataset,
                     batch_size=test_loader.batch_size,
@@ -214,12 +227,17 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
     img_size = getattr(getattr(cfg, "data", {}), "img_size", None)
     if aug_cfg.get("test_tta_enabled", True) and img_size is not None:
         tta_transforms = get_tta_transforms(img_size)
+    train_img_path = getattr(cfg.data, "train_images_path", os.path.dirname(cfg.data.test_csv_path))
+    cache_root = os.path.join(os.path.dirname(train_img_path), "train_cache")
+    seed = getattr(getattr(cfg, "train", {}), "seed", 42)
+    cache_info = (cache_root, seed)
     if is_kfold:
         predictions = predict_kfold_ensemble(
             models_or_model,
             test_loader,
             device,
             tta_transforms=tta_transforms,
+            cache_info=cache_info,
         )
     else:
         predictions = predict_single_model(
@@ -227,6 +245,7 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             test_loader,
             device,
             tta_transforms=tta_transforms,
+            cache_info=cache_info,
         )
     
     # 결과 저장
