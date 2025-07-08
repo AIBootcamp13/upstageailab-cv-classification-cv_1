@@ -27,7 +27,6 @@ from augment import get_tta_transforms
 from data import get_transforms
 import numpy as np
 from models import (
-    get_model_save_path,
     get_seed_fold_model_path,
     load_model_for_inference,
 )
@@ -135,7 +134,7 @@ def main(cfg: DictConfig) -> None:
             log.info("K-Fold 교차 검증 학습 완료")
             if cfg.model_save.wandb_artifact:
                 for fold_idx in range(len(models)):
-                    best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
+                    best_model_path = get_seed_fold_model_path(cfg, cfg.train.seed, fold_idx + 1)
                     metadata = {"fold": fold_idx + 1, "type": "best"}
                     save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
             pred_df = run_inference(
@@ -145,8 +144,8 @@ def main(cfg: DictConfig) -> None:
             model = train_single_model(cfg, train_loader, val_loader, device)
             log.info("단일 모델 학습 완료")
             if cfg.model_save.wandb_artifact:
-                best_model_path = get_model_save_path(cfg, "best")
-                metadata = {"type": "best"}
+                best_model_path = get_seed_fold_model_path(cfg, cfg.train.seed, 0)
+                metadata = {"fold": 0, "type": "best"}
                 save_model_as_artifact(best_model_path, cfg, "best", metadata)
             pred_df = run_inference(
                 model, test_loader, test_loader.dataset, cfg, device, is_kfold=False

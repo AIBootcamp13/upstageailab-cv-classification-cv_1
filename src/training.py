@@ -39,7 +39,6 @@ from data import (
 from models import (
     setup_model_and_optimizer,
     save_model_with_metadata,
-    get_model_save_path,
     get_seed_fold_model_path,
 )
 from utils import EarlyStopping
@@ -289,17 +288,16 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
                 best_metric = ret['val_f1']
                 best_epoch = epoch + 1
 
-                # 최고 성능 모델 저장
-                best_model_path = get_model_save_path(cfg, "best")
-                metadata = {
-                    "epoch": best_epoch,
-                    "val_f1": best_metric,
-                    "val_acc": ret['val_acc'],
-                    "val_loss": ret['val_loss'],
-                    "model_name": cfg.model.name,
-                }
-                save_model_with_metadata(model, best_model_path, metadata)
+                # 최고 성능 모델 저장 (fold 정보 포함)
                 if save_to_disk and save_path is not None:
+                    metadata = {
+                        "fold": fold,
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name,
+                    }
                     save_model_with_metadata(model, save_path, metadata)
         else:
             # No validation
@@ -453,18 +451,16 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
                 best_metric = ret['val_f1']
                 best_epoch = epoch + 1
 
-                # 최고 성능 모델 저장
-                best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
-                metadata = {
-                    "fold": fold_idx + 1,
-                    "epoch": best_epoch,
-                    "val_f1": best_metric,
-                    "val_acc": ret['val_acc'],
-                    "val_loss": ret['val_loss'],
-                    "model_name": cfg.model.name,
-                }
-                save_model_with_metadata(model, best_model_path, metadata)
+                # 최고 성능 모델 저장 (fold 정보 포함)
                 if save_to_disk and disk_path is not None:
+                    metadata = {
+                        "fold": fold_idx + 1,
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name,
+                    }
                     save_model_with_metadata(model, disk_path, metadata)
             
             # Early stopping 체크

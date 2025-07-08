@@ -229,7 +229,13 @@ def get_seed_fold_model_path(cfg, seed: int, fold: int) -> str:
     model_dir = getattr(cfg, "model_save", {}).get("dir", "models")
     os.makedirs(model_dir, exist_ok=True)
     model_name = cfg.model.name
-    filename = f"{model_name}_seed{seed}_fold{fold}.pth"
+    
+    # K-fold인 경우 fold 번호 포함, Holdout인 경우 seed만 사용
+    if fold == 0:  # Holdout
+        filename = f"{model_name}_seed{seed}.pth"
+    else:  # K-fold (fold는 1, 2, 3, ...)
+        filename = f"{model_name}_seed{seed}_fold{fold}.pth"
+    
     return os.path.join(model_dir, filename)
 
 
