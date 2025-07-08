@@ -237,12 +237,12 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
     
     # Early stopping 초기화
     early_stopping = None
-    if val_loader is not None and cfg.validation.early_stopping.enabled:
+    if val_loader is not None and cfg.valid.early_stopping.enabled:
         early_stopping = EarlyStopping(
-            patience=cfg.validation.early_stopping.patience,
-            min_delta=cfg.validation.early_stopping.min_delta,
-            monitor=cfg.validation.early_stopping.monitor,
-            mode=cfg.validation.early_stopping.mode
+            patience=cfg.valid.early_stopping.patience,
+            min_delta=cfg.valid.early_stopping.min_delta,
+            monitor=cfg.valid.early_stopping.monitor,
+            mode=cfg.valid.early_stopping.mode
         )
 
     aug_cfg = getattr(cfg, "augment", {})
@@ -403,12 +403,12 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
         
         # Early stopping 초기화
         early_stopping = None
-        if cfg.validation.early_stopping.enabled:
+        if cfg.valid.early_stopping.enabled:
             early_stopping = EarlyStopping(
-                patience=cfg.validation.early_stopping.patience,
-                min_delta=cfg.validation.early_stopping.min_delta,
-                monitor=cfg.validation.early_stopping.monitor,
-                mode=cfg.validation.early_stopping.mode
+                patience=cfg.valid.early_stopping.patience,
+                min_delta=cfg.valid.early_stopping.min_delta,
+                monitor=cfg.valid.early_stopping.monitor,
+                mode=cfg.valid.early_stopping.mode
             )
         
         # 최고 성능 추적을 위한 변수

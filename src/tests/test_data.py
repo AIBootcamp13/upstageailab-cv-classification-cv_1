@@ -219,7 +219,7 @@ class TestDataLoaderPreparation:
                 'batch_size': 8,
                 'seed': 42
             },
-            'validation': {
+            'valid': {
                 'strategy': 'holdout',
                 'holdout': {
                     'train_ratio': 0.8,
@@ -256,7 +256,7 @@ class TestDataLoaderPreparation:
                 'batch_size': 8,
                 'seed': 42
             },
-            'validation': {
+            'valid': {
                 'strategy': 'kfold',
                 'kfold': {
                     'n_splits': 3,
@@ -297,7 +297,7 @@ class TestDataLoaderPreparation:
                 'batch_size': 8,
                 'seed': 42
             },
-            'validation': {
+            'valid': {
                 'strategy': 'none'
             }
         })

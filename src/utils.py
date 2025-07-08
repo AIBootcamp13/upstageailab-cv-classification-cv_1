@@ -125,17 +125,17 @@ def setup_wandb(cfg):
             # "scheduler_cosine_warm_eta_min": cfg.training.scheduler.cosine_warm.eta_min,
             # "scheduler_cosine_warm_last_epoch": cfg.training.scheduler.cosine_warm.last_epoch,
             
-            # Validation configuration
-            "val_strategy": cfg.validation.strategy,
-            "val_holdout_train_ratio": cfg.validation.holdout.train_ratio,
-            "val_holdout_stratify": cfg.validation.holdout.stratify,
-            "val_kfold_n_splits": cfg.validation.kfold.n_splits,
-            "val_kfold_stratify": cfg.validation.kfold.stratify,
-            "val_early_stopping_enabled": cfg.validation.early_stopping.enabled,
-            "val_early_stopping_patience": cfg.validation.early_stopping.patience,
-            "val_early_stopping_min_delta": cfg.validation.early_stopping.min_delta,
-            "val_early_stopping_monitor": cfg.validation.early_stopping.monitor,
-            "val_early_stopping_mode": cfg.validation.early_stopping.mode,
+            # Valid configuration
+            "val_strategy": cfg.valid.strategy,
+            "val_holdout_train_ratio": cfg.valid.holdout.train_ratio,
+            "val_holdout_stratify": cfg.valid.holdout.stratify,
+            "val_kfold_n_splits": cfg.valid.kfold.n_splits,
+            "val_kfold_stratify": cfg.valid.kfold.stratify,
+            "val_early_stopping_enabled": cfg.valid.early_stopping.enabled,
+            "val_early_stopping_patience": cfg.valid.early_stopping.patience,
+            "val_early_stopping_min_delta": cfg.valid.early_stopping.min_delta,
+            "val_early_stopping_monitor": cfg.valid.early_stopping.monitor,
+            "val_early_stopping_mode": cfg.valid.early_stopping.mode,
             
             # Device configuration
             "device": cfg.device,

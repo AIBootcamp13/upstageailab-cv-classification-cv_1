@@ -258,14 +258,14 @@ def prepare_data_loaders(cfg, seed: int):
     )
 
     aug_cfg = getattr(cfg, "augment", {})
-    strategy = cfg.validation.strategy
+    strategy = cfg.valid.strategy
     cache_root = os.path.join(os.path.dirname(train_images_path), "train_cache")
 
     if strategy == "holdout":
         train_df, val_df = _split_holdout(
             full_train_df,
-            cfg.validation.holdout.train_ratio,
-            cfg.validation.holdout.stratify,
+            cfg.valid.holdout.train_ratio,
+            cfg.valid.holdout.stratify,
             seed,
         )
         train_ds = IndexedImageDataset(train_df, train_images_path, transform=None, return_filename=True)
@@ -351,12 +351,12 @@ def prepare_data_loaders(cfg, seed: int):
         )
         return train_loader, None, test_loader, None
 
-    raise ValueError(f"Unknown validation strategy: {strategy}")
+    raise ValueError(f"Unknown valid strategy: {strategy}")
 
 
 def _prepare_kfold_splits(cfg, full_train_df: pd.DataFrame, seed: int):
-    n_splits = cfg.validation.kfold.n_splits
-    stratify = cfg.validation.kfold.stratify
+    n_splits = cfg.valid.kfold.n_splits
+    stratify = cfg.valid.kfold.stratify
     if stratify:
         skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
         return list(skf.split(full_train_df, full_train_df["target"]))

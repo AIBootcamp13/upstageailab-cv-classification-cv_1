@@ -206,7 +206,7 @@ class TestTrainSingleModel:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'validation': {
+            'valid': {
                 'early_stopping': {
                     'enabled': False
                 }
@@ -246,11 +246,11 @@ class TestTrainSingleModel:
     def test_train_single_model_with_early_stopping(self):
         """Early stopping 포함 학습 테스트"""
         # Early stopping 활성화
-        self.cfg.validation.early_stopping.enabled = True
-        self.cfg.validation.early_stopping.patience = 1
-        self.cfg.validation.early_stopping.monitor = 'val_loss'
-        self.cfg.validation.early_stopping.mode = 'min'
-        self.cfg.validation.early_stopping.min_delta = 0.001
+        self.cfg.valid.early_stopping.enabled = True
+        self.cfg.valid.early_stopping.patience = 1
+        self.cfg.valid.early_stopping.monitor = 'val_loss'
+        self.cfg.valid.early_stopping.mode = 'min'
+        self.cfg.valid.early_stopping.min_delta = 0.001
         
         with patch('training.log'):
             model = train_single_model(self.cfg, self.train_loader, self.val_loader, self.device)
@@ -280,7 +280,7 @@ class TestTrainKFoldModels:
             'data': {
                 'num_workers': 0
             },
-            'validation': {
+            'valid': {
                 'early_stopping': {
                     'enabled': False
                 }
@@ -528,8 +528,7 @@ class TestMixedPrecisionTraining:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'validation': {
-                'strategy': 'none',
+            'valid': {
                 'early_stopping': {
                     'enabled': False
                 }
@@ -588,8 +587,7 @@ class TestMixedPrecisionTraining:
                 'img_size': 32,
                 'num_workers': 0
             },
-            'validation': {
-                'strategy': 'none',
+            'valid': {
                 'early_stopping': {
                     'enabled': False
                 }

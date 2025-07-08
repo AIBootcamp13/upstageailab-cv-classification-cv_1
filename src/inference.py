@@ -207,7 +207,7 @@ def upload_to_wandb(pred_df, cfg):
                 "img_size": cfg.data.img_size,
                 "num_predictions": len(pred_df),
                 "output_filename": cfg.output.filename,
-                "validation_strategy": cfg.validation.strategy,
+                "valid_strategy": cfg.valid.strategy,
             }
         )
         

@@ -76,9 +76,9 @@ augment:
   valid_aug_count: 0       # number of augmented copies per valid image
   test_tta_enabled: true   # apply TTA on test dataset
 
-# Validation configuration
-validation:
-  # Validation strategy: "holdout", "kfold", or "none"
+# Valid configuration
+valid:
+  # Valid strategy: "holdout", "kfold", or "none"
   strategy: "holdout"  # "holdout", "kfold", "none"
   
   # Holdout configuration

@@ -66,7 +66,7 @@ class TestMainPipeline:
         self.output_dir = os.path.join(self.temp_dir, "output")
         os.makedirs(self.output_dir)
     
-    def create_test_config(self, validation_strategy='holdout'):
+    def create_test_config(self, valid_strategy='holdout'):
         """테스트용 설정 생성"""
         cfg = OmegaConf.create({
             'data': {
@@ -88,8 +88,8 @@ class TestMainPipeline:
                 'batch_size': 4,
                 'seed': 42
             },
-            'validation': {
-                'strategy': validation_strategy,
+            'valid': {
+                'strategy': valid_strategy,
                 'holdout': {
                     'train_ratio': 0.8,
                     'stratify': True
@@ -148,7 +148,7 @@ train:
   epochs: 1
   batch_size: 4
   seed: 42
-validation:
+valid:
   strategy: holdout
   holdout:
     train_ratio: 0.8
@@ -345,7 +345,7 @@ class TestModuleIntegration:
                 'batch_size': 4,
                 'seed': 42
             },
-            'validation': {
+            'valid': {
                 'strategy': 'holdout',
                 'holdout': {
                     'train_ratio': 0.8,
@@ -468,8 +468,8 @@ class TestModuleIntegration:
     def test_kfold_pipeline_integration(self):
         """K-Fold 파이프라인 통합 테스트"""
         # K-Fold 설정으로 변경
-        self.cfg.validation.strategy = 'kfold'
-        self.cfg.validation.kfold.n_splits = 2
+        self.cfg.valid.strategy = 'kfold'
+        self.cfg.valid.kfold.n_splits = 2
         
         # 시드 설정
         set_seed(self.cfg.train.seed)
@@ -536,7 +536,7 @@ class TestErrorHandling:
                 'num_workers': 0
             },
             'train': {'batch_size': 4, 'seed': 42},
-            'validation': {'strategy': 'holdout'},
+            'valid': {'strategy': 'holdout'},
             'model_save': {'dir': os.path.join(temp_dir, 'models')}
         })
         

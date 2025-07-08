@@ -74,9 +74,9 @@ def main(cfg: DictConfig) -> None:
             set_seed(current_seed)
             train_loader, val_loader, test_loader, kfold_data = prepare_data_loaders(cfg, current_seed)
 
-            validation_strategy = cfg.validation.strategy
+            valid_strategy = cfg.valid.strategy
 
-            if validation_strategy == "kfold":
+            if valid_strategy == "kfold":
                 items = train_kfold_models(cfg, kfold_data, device, save_to_disk=True, seed=current_seed)
                 model_paths.extend(items)
             else:
@@ -127,9 +127,9 @@ def main(cfg: DictConfig) -> None:
             log.info(f"테스트 데이터: {len(test_loader.dataset)}개")  # type: ignore
 
         log.info("=== 모델 학습 ===")
-        validation_strategy = cfg.validation.strategy
+        valid_strategy = cfg.valid.strategy
 
-        if validation_strategy == "kfold":
+        if valid_strategy == "kfold":
             models = train_kfold_models(cfg, kfold_data, device)
             log.info("K-Fold 교차 검증 학습 완료")
             if cfg.model_save.wandb_artifact:
