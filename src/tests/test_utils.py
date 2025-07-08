@@ -195,7 +195,7 @@ class TestSetupWandb:
             },
             'device': 'cpu',
             'output': {'dir': 'out', 'filename': 'pred.csv'},
-            'model_save': {'enabled': False},
+            'model_save': {'dir': 'models'},
             'random_seed_ensemble': {'enabled': False, 'count': 1}
         })
         
@@ -277,7 +277,7 @@ class TestSetupWandb:
             },
             'device': 'cpu',
             'output': {'dir': 'out', 'filename': 'pred.csv'},
-            'model_save': {'enabled': False},
+            'model_save': {'dir': 'models'},
             'random_seed_ensemble': {'enabled': False, 'count': 1}
         })
         

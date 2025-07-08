@@ -61,10 +61,7 @@ output:
 
 # Model saving configuration
 model_save:
-  enabled: true
   dir: "models"
-  save_best: true
-  save_last: true
   wandb_artifact: false  # 테스트를 위해 비활성화
 
 # W&B configuration

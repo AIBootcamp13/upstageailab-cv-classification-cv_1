@@ -109,10 +109,7 @@ output:
 
 # Model saving configuration
 model_save:
-  enabled: false
   dir: "models"
-  save_best: false  # 최고 성능 모델 저장
-  save_last: false  # 마지막 에포크 모델 저장
   wandb_artifact: false  # wandb 아티팩트로 등록
 
 # Random seed ensemble configuration

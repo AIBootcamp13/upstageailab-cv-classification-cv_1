@@ -7,6 +7,7 @@
 """
 
 import os
+import torch
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from dotenv import load_dotenv
@@ -25,7 +26,10 @@ from inference import (
 from augment import get_tta_transforms
 from data import get_transforms
 import numpy as np
-from models import get_model_save_path
+from models import (
+    get_seed_fold_model_path,
+    load_model_for_inference,
+)
 
 
 # 현재 스크립트 위치를 작업 디렉토리로 설정
@@ -62,7 +66,7 @@ def main(cfg: DictConfig) -> None:
     seed_ensemble_cfg = getattr(cfg, "random_seed_ensemble", {"enabled": False})
     if seed_ensemble_cfg.get("enabled", False):
         ensemble_count = int(seed_ensemble_cfg.get("count", 1))
-        all_probs = []
+        model_paths: list[str] = []
         for idx in range(ensemble_count):
             current_seed = cfg.train.seed + idx
             log.info(f"=== Random seed ensemble {idx + 1}/{ensemble_count} - seed {current_seed} ===")
@@ -73,55 +77,34 @@ def main(cfg: DictConfig) -> None:
             validation_strategy = cfg.validation.strategy
 
             if validation_strategy == "kfold":
-                models = train_kfold_models(cfg, kfold_data, device)
-                model_save_cfg = getattr(cfg, "model_save", {})
-                if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
-                    for fold_idx in range(len(models)):
-                        if model_save_cfg.get("save_best", False):
-                            best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}_seed{idx}")
-                            metadata = {"fold": fold_idx + 1, "type": "best", "seed": current_seed}
-                            save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}_seed{idx}", metadata)
-                        if model_save_cfg.get("save_last", False):
-                            last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}_seed{idx}")
-                            metadata = {"fold": fold_idx + 1, "type": "last", "seed": current_seed}
-                            save_model_as_artifact(last_model_path, cfg, f"last_fold{fold_idx + 1}_seed{idx}", metadata)
-                tta_transforms = None
-                aug_cfg = getattr(cfg, "augment", {})
-                if aug_cfg.get("test_tta_enabled", True):
-                    tta_transforms = get_tta_transforms(cfg.data.img_size)
-                probs = predict_kfold_ensemble(
-                    models,
-                    test_loader,
-                    device,
-                    tta_transforms=tta_transforms,
-                    return_probs=True,
-                )
+                items = train_kfold_models(cfg, kfold_data, device, save_to_disk=True, seed=current_seed)
+                model_paths.extend(items)
             else:
-                model = train_single_model(cfg, train_loader, val_loader, device)
-                model_save_cfg = getattr(cfg, "model_save", {})
-                if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
-                    if model_save_cfg.get("save_best", False):
-                        best_model_path = get_model_save_path(cfg, f"best_seed{idx}")
-                        metadata = {"type": "best", "seed": current_seed}
-                        save_model_as_artifact(best_model_path, cfg, f"best_seed{idx}", metadata)
-                    if model_save_cfg.get("save_last", False):
-                        last_model_path = get_model_save_path(cfg, f"last_seed{idx}")
-                        metadata = {"type": "last", "seed": current_seed}
-                        save_model_as_artifact(last_model_path, cfg, f"last_seed{idx}", metadata)
+                item = train_single_model(cfg, train_loader, val_loader, device, save_to_disk=True, seed=current_seed)
+                model_paths.append(item)
 
-                tta_transforms = None
-                aug_cfg = getattr(cfg, "augment", {})
-                if aug_cfg.get("test_tta_enabled", True):
-                    tta_transforms = get_tta_transforms(cfg.data.img_size)
-                probs = predict_single_model(
-                    model,
-                    test_loader,
-                    device,
-                    tta_transforms=tta_transforms,
-                    return_probs=True,
-                )
+        # Load saved models and ensemble predictions
+        aug_cfg = getattr(cfg, "augment", {})
+        tta_transforms = None
+        if aug_cfg.get("test_tta_enabled", True):
+            tta_transforms = get_tta_transforms(cfg.data.img_size)
 
+        all_probs = []
+        for item in model_paths:
+            if isinstance(item, str):
+                model = load_model_for_inference(cfg, item, device)
+            else:
+                model = item
+            probs = predict_single_model(
+                model,
+                test_loader,
+                device,
+                tta_transforms=tta_transforms,
+                return_probs=True,
+            )
             all_probs.append(probs)
+            del model
+            torch.cuda.empty_cache()
 
         ensemble_probs = np.mean(all_probs, axis=0)
         final_preds = ensemble_probs.argmax(axis=1)
@@ -149,33 +132,21 @@ def main(cfg: DictConfig) -> None:
         if validation_strategy == "kfold":
             models = train_kfold_models(cfg, kfold_data, device)
             log.info("K-Fold 교차 검증 학습 완료")
-            model_save_cfg = getattr(cfg, "model_save", {})
-            if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
+            if cfg.model_save.wandb_artifact:
                 for fold_idx in range(len(models)):
-                    if model_save_cfg.get("save_best", False):
-                        best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
-                        metadata = {"fold": fold_idx + 1, "type": "best"}
-                        save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
-                    if model_save_cfg.get("save_last", False):
-                        last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
-                        metadata = {"fold": fold_idx + 1, "type": "last"}
-                        save_model_as_artifact(last_model_path, cfg, f"last_fold{fold_idx + 1}", metadata)
+                    best_model_path = get_seed_fold_model_path(cfg, cfg.train.seed, fold_idx + 1)
+                    metadata = {"fold": fold_idx + 1, "type": "best"}
+                    save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
             pred_df = run_inference(
                 models, test_loader, test_loader.dataset, cfg, device, is_kfold=True
             )
         else:
             model = train_single_model(cfg, train_loader, val_loader, device)
             log.info("단일 모델 학습 완료")
-            model_save_cfg = getattr(cfg, "model_save", {})
-            if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
-                if model_save_cfg.get("save_best", False):
-                    best_model_path = get_model_save_path(cfg, "best")
-                    metadata = {"type": "best"}
-                    save_model_as_artifact(best_model_path, cfg, "best", metadata)
-                if model_save_cfg.get("save_last", False):
-                    last_model_path = get_model_save_path(cfg, "last")
-                    metadata = {"type": "last"}
-                    save_model_as_artifact(last_model_path, cfg, "last", metadata)
+            if cfg.model_save.wandb_artifact:
+                best_model_path = get_seed_fold_model_path(cfg, cfg.train.seed, 0)
+                metadata = {"fold": 0, "type": "best"}
+                save_model_as_artifact(best_model_path, cfg, "best", metadata)
             pred_df = run_inference(
                 model, test_loader, test_loader.dataset, cfg, device, is_kfold=False
             )

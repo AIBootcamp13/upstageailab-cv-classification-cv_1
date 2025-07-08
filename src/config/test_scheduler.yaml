@@ -51,10 +51,7 @@ output:
 
 # Model saving configuration
 model_save:
-  enabled: true
   dir: "models"
-  save_best: true
-  save_last: true
   wandb_artifact: false
 
 # W&B configuration
