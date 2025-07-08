@@ -24,7 +24,7 @@ model_save:
   enabled: true
   dir: "models"
   save_best: true
-  save_last: true
+  save_last: false
   wandb_artifact: true  # wandb 아티팩트 등록 활성화
 
 wandb:

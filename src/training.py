@@ -6,6 +6,7 @@
 - 학습 루프 관리
 """
 
+import os
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -241,6 +242,10 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
     best_metric = None
     best_epoch = 0
     
+    save_path = None
+    if save_to_disk:
+        save_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold)
+
     for epoch in range(cfg.train.epochs):
         # 훈련
         train_ret = train_one_epoch(train_loader, model, optimizer, loss_fn, device, scaler)
@@ -283,7 +288,7 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
             if best_metric is None or ret['val_f1'] > best_metric:
                 best_metric = ret['val_f1']
                 best_epoch = epoch + 1
-                
+
                 # 최고 성능 모델 저장
                 model_save_cfg = getattr(cfg, "model_save", {})
                 if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
@@ -296,6 +301,15 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
                         "model_name": cfg.model.name
                     }
                     save_model_with_metadata(model, best_model_path, metadata)
+                if save_to_disk and save_path is not None:
+                    disk_metadata = {
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name,
+                    }
+                    save_model_with_metadata(model, save_path, disk_metadata)
         else:
             # No validation
             log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
@@ -327,41 +341,16 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
                 log.info(f"Early stopping at epoch {epoch + 1}")
                 break
     
-    # 마지막 에포크 모델 저장
-    model_save_cfg = getattr(cfg, "model_save", {})
-    if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_last", False):
-        last_model_path = get_model_save_path(cfg, "last")
-        metadata = {
-            "epoch": epoch + 1,
-            "model_name": cfg.model.name,
-            "final_train_loss": ret['train_loss'],
-            "final_train_acc": ret['train_acc'],
-            "final_train_f1": ret['train_f1']
-        }
-        if val_loader is not None:
-            metadata.update({
-                "final_val_loss": ret['val_loss'],
-                "final_val_acc": ret['val_acc'],
-                "final_val_f1": ret['val_f1']
-            })
-        save_model_with_metadata(model, last_model_path, metadata)
-    
-    if save_to_disk:
-        save_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold)
-        metadata = {
-            "epoch": epoch + 1,
-            "model_name": cfg.model.name,
-            "final_train_loss": ret["train_loss"],
-            "final_train_acc": ret["train_acc"],
-            "final_train_f1": ret["train_f1"],
-        }
-        if val_loader is not None:
-            metadata.update({
-                "final_val_loss": ret["val_loss"],
-                "final_val_acc": ret["val_acc"],
-                "final_val_f1": ret["val_f1"],
-            })
-        save_model_with_metadata(model, save_path, metadata)
+    if save_to_disk and save_path is not None:
+        if val_loader is None and os.path.exists(save_path) is False:
+            metadata = {
+                "epoch": epoch + 1,
+                "model_name": cfg.model.name,
+                "final_train_loss": ret["train_loss"],
+                "final_train_acc": ret["train_acc"],
+                "final_train_f1": ret["train_f1"],
+            }
+            save_model_with_metadata(model, save_path, metadata)
         del model
         torch.cuda.empty_cache()
         return save_path
@@ -378,6 +367,9 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
     
     for fold_idx, (train_idx, val_idx) in enumerate(folds):
         log.info(f"========== Fold {fold_idx + 1}/{n_splits} ==========")
+        disk_path = None
+        if save_to_disk:
+            disk_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold_idx + 1)
         
         # 현재 fold의 데이터 로더 준비
         train_loader, val_loader, train_df, val_df = get_kfold_loaders(
@@ -469,7 +461,7 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
             if best_metric is None or ret['val_f1'] > best_metric:
                 best_metric = ret['val_f1']
                 best_epoch = epoch + 1
-                
+
                 # 최고 성능 모델 저장
                 model_save_cfg = getattr(cfg, "model_save", {})
                 if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
@@ -483,6 +475,16 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
                         "model_name": cfg.model.name
                     }
                     save_model_with_metadata(model, best_model_path, metadata)
+                if save_to_disk and disk_path is not None:
+                    disk_metadata = {
+                        "fold": fold_idx + 1,
+                        "epoch": best_epoch,
+                        "val_f1": best_metric,
+                        "val_acc": ret['val_acc'],
+                        "val_loss": ret['val_loss'],
+                        "model_name": cfg.model.name,
+                    }
+                    save_model_with_metadata(model, disk_path, disk_metadata)
             
             # Early stopping 체크
             if early_stopping is not None:
@@ -490,38 +492,8 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
                     log.info(f"Early stopping at epoch {epoch + 1}")
                     break
         
-        # 마지막 에포크 모델 저장
-        model_save_cfg = getattr(cfg, "model_save", {})
-        if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_last", False):
-            last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
-            metadata = {
-                "fold": fold_idx + 1,
-                "epoch": epoch + 1,
-                "model_name": cfg.model.name,
-                "final_train_loss": ret['train_loss'],
-                "final_train_acc": ret['train_acc'],
-                "final_train_f1": ret['train_f1'],
-                "final_val_loss": ret['val_loss'],
-                "final_val_acc": ret['val_acc'],
-                "final_val_f1": ret['val_f1']
-            }
-            save_model_with_metadata(model, last_model_path, metadata)
-        
-        if save_to_disk:
-            save_path = get_seed_fold_model_path(cfg, seed or cfg.train.seed, fold_idx + 1)
-            metadata = {
-                "fold": fold_idx + 1,
-                "epoch": epoch + 1,
-                "model_name": cfg.model.name,
-                "final_train_loss": ret['train_loss'],
-                "final_train_acc": ret['train_acc'],
-                "final_train_f1": ret['train_f1'],
-                "final_val_loss": ret['val_loss'],
-                "final_val_acc": ret['val_acc'],
-                "final_val_f1": ret['val_f1'],
-            }
-            save_model_with_metadata(model, save_path, metadata)
-            models.append(save_path)
+        if save_to_disk and disk_path is not None:
+            models.append(disk_path)
             del model
             torch.cuda.empty_cache()
         else:

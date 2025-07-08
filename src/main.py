@@ -140,10 +140,6 @@ def main(cfg: DictConfig) -> None:
                         best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
                         metadata = {"fold": fold_idx + 1, "type": "best"}
                         save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
-                    if model_save_cfg.get("save_last", False):
-                        last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}")
-                        metadata = {"fold": fold_idx + 1, "type": "last"}
-                        save_model_as_artifact(last_model_path, cfg, f"last_fold{fold_idx + 1}", metadata)
             pred_df = run_inference(
                 models, test_loader, test_loader.dataset, cfg, device, is_kfold=True
             )
@@ -156,10 +152,6 @@ def main(cfg: DictConfig) -> None:
                     best_model_path = get_model_save_path(cfg, "best")
                     metadata = {"type": "best"}
                     save_model_as_artifact(best_model_path, cfg, "best", metadata)
-                if model_save_cfg.get("save_last", False):
-                    last_model_path = get_model_save_path(cfg, "last")
-                    metadata = {"type": "last"}
-                    save_model_as_artifact(last_model_path, cfg, "last", metadata)
             pred_df = run_inference(
                 model, test_loader, test_loader.dataset, cfg, device, is_kfold=False
             )
