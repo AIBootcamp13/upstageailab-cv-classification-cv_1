@@ -50,15 +50,16 @@ upstageailab-cv-classification-cv_1_fork/
 │   │   ├── test_augmentation.py  # 증강 테스트
 │   │   ├── test_scheduler.py     # 스케줄러 테스트
 │   │   └── test_utils.py         # 유틸리티 테스트
-│   ├── main.py                   # 메인 실행 파일
-│   ├── data.py                   # 데이터 로딩 및 증강
-│   ├── models.py                 # 모델 정의
-│   ├── training.py               # 훈련 로직
-│   ├── inference.py              # 추론 로직
-│   ├── utils.py                  # 유틸리티 함수들
-│   ├── log_util.py               # 로깅 유틸리티
-│   ├── pytest.ini               # pytest 설정
-│   └── env_template.txt          # 환경 변수 템플릿
+│   ├── main.py                   # 메인 실행 파일 (8.8KB, 198줄)
+│   ├── data.py                   # 데이터 로딩 및 증강 (8.8KB, 274줄)
+│   ├── models.py                 # 모델 정의 (7.6KB, 238줄)
+│   ├── training.py               # 훈련 로직 (19KB, 488줄)
+│   ├── inference.py              # 추론 로직 (7.6KB, 240줄)
+│   ├── augment.py                # 이미지 증강 유틸리티 (6.4KB, 160줄)
+│   ├── utils.py                  # 유틸리티 함수들 (9.7KB, 251줄)
+│   ├── log_util.py               # 로깅 유틸리티 (3.3KB, 103줄)
+│   ├── pytest.ini               # pytest 설정 (185B, 5줄)
+│   └── env_template.txt          # 환경 변수 템플릿 (162B, 6줄)
 ├── input/                        # 데이터 디렉토리
 │   ├── data/                     # 실제 데이터
 │   │   ├── train/               # 훈련 이미지들
@@ -103,6 +104,10 @@ upstageailab-cv-classification-cv_1_fork/
 - 클래스 불균형 대응 (가중치 조정, 증강)
 - 테스트 데이터 특성 분석 기반 적응형 증강
 - 밝기, 대비, 회전 보정 적용
+- `augment.py`를 통한 체계적인 증강 관리:
+  - `get_album_transform()`: 훈련용 Albumentations 증강 파이프라인
+  - `get_augraphy_pipeline()`: 문서 특화 증강 (잉크 번짐, 종이 색상, 그림자 등)
+  - `get_tta_transforms()`: 추론 시 TTA용 5가지 고정 변형
 
 ## 주요 기능
 
@@ -112,10 +117,10 @@ upstageailab-cv-classification-cv_1_fork/
 - **No validation**: 전체 데이터 훈련
 
 ### 2. 이미지 증강
-- **Albumentations**: 일반적인 컴퓨터 비전 증강
-- **Augraphy**: 문서 특화 증강 (잉크 번짐, 노이즈 등)
+- **Albumentations**: 일반적인 컴퓨터 비전 증강 (회전, 노이즈, 밝기 조정 등)
+- **Augraphy**: 문서 특화 증강 (잉크 번짐, 종이 색상, 그림자 등)
 - **Mix 증강**: 두 방법 조합
-- **TTA**: 추론 시 증강 앙상블
+- **TTA**: 추론 시 증강 앙상블 (5가지 변형: 원본, 좌우반전, 상하반전, 회전, 밝기조정)
 
 ### 3. 모델 지원
 - **ResNet**: ResNet18, ResNet34
@@ -272,7 +277,7 @@ uv run python tests/test_main.py
 - ✅ **Early Stopping**: 조기 종료 로직 및 다양한 모니터링 지표
 - ✅ **학습/검증**: train_one_epoch, validate_one_epoch 함수
 - ✅ **추론**: 예측 결과 생성 및 포맷 검증
-- ✅ **증강**: Albumentations, Augraphy 증강 기능
+- ✅ **증강**: Albumentations, Augraphy 증강 기능 (augment.py 모듈 포함)
 - ✅ **스케줄러**: 다양한 학습률 스케줄러
 - ✅ **모델**: 다양한 백본 모델 지원
 
