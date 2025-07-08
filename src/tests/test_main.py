@@ -107,6 +107,10 @@ class TestMainPipeline:
                 'dir': self.output_dir,
                 'filename': 'test_predictions.csv'
             },
+            'model_save': {
+                'dir': os.path.join(self.temp_dir, 'models'),
+                'wandb_artifact': False
+            },
             'wandb': {
                 'enabled': False
             }
@@ -155,6 +159,9 @@ device: cpu
 output:
   dir: {self.output_dir}
   filename: test_predictions.csv
+model_save:
+  dir: {os.path.join(self.temp_dir, "models")}
+  wandb_artifact: false
 wandb:
   enabled: false
 """)
@@ -358,6 +365,10 @@ class TestModuleIntegration:
                 'dir': self.temp_dir,
                 'filename': 'integration_test.csv'
             },
+            'model_save': {
+                'dir': os.path.join(self.temp_dir, 'models'),
+                'wandb_artifact': False
+            },
             'wandb': {
                 'enabled': False
             }
@@ -525,7 +536,8 @@ class TestErrorHandling:
                 'num_workers': 0
             },
             'train': {'batch_size': 4, 'seed': 42},
-            'validation': {'strategy': 'holdout'}
+            'validation': {'strategy': 'holdout'},
+            'model_save': {'dir': os.path.join(temp_dir, 'models')}
         })
         
         with pytest.raises(FileNotFoundError):

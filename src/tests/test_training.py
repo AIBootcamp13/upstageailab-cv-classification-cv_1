@@ -214,6 +214,10 @@ class TestTrainSingleModel:
             'wandb': {
                 'enabled': False
             }
+            ,
+            'model_save': {
+                'dir': 'models'
+            }
         })
     
     @patch('training.log')
@@ -280,6 +284,9 @@ class TestTrainKFoldModels:
                 'early_stopping': {
                     'enabled': False
                 }
+            },
+            'model_save': {
+                'dir': 'models'
             },
             'wandb': {
                 'enabled': False
@@ -528,7 +535,7 @@ class TestMixedPrecisionTraining:
                 }
             },
             'model_save': {
-                'enabled': False
+                'dir': 'models'
             },
             'wandb': {
                 'enabled': False
@@ -588,7 +595,7 @@ class TestMixedPrecisionTraining:
                 }
             },
             'model_save': {
-                'enabled': False
+                'dir': 'models'
             },
             'wandb': {
                 'enabled': False

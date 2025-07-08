@@ -290,17 +290,15 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
                 best_epoch = epoch + 1
 
                 # 최고 성능 모델 저장
-                model_save_cfg = getattr(cfg, "model_save", {})
-                if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
-                    best_model_path = get_model_save_path(cfg, "best")
-                    metadata = {
-                        "epoch": best_epoch,
-                        "val_f1": best_metric,
-                        "val_acc": ret['val_acc'],
-                        "val_loss": ret['val_loss'],
-                        "model_name": cfg.model.name
-                    }
-                    save_model_with_metadata(model, best_model_path, metadata)
+                best_model_path = get_model_save_path(cfg, "best")
+                metadata = {
+                    "epoch": best_epoch,
+                    "val_f1": best_metric,
+                    "val_acc": ret['val_acc'],
+                    "val_loss": ret['val_loss'],
+                    "model_name": cfg.model.name,
+                }
+                save_model_with_metadata(model, best_model_path, metadata)
                 if save_to_disk and save_path is not None:
                     disk_metadata = {
                         "epoch": best_epoch,
@@ -463,18 +461,16 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
                 best_epoch = epoch + 1
 
                 # 최고 성능 모델 저장
-                model_save_cfg = getattr(cfg, "model_save", {})
-                if model_save_cfg.get("enabled", False) and model_save_cfg.get("save_best", False):
-                    best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
-                    metadata = {
-                        "fold": fold_idx + 1,
-                        "epoch": best_epoch,
-                        "val_f1": best_metric,
-                        "val_acc": ret['val_acc'],
-                        "val_loss": ret['val_loss'],
-                        "model_name": cfg.model.name
-                    }
-                    save_model_with_metadata(model, best_model_path, metadata)
+                best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
+                metadata = {
+                    "fold": fold_idx + 1,
+                    "epoch": best_epoch,
+                    "val_f1": best_metric,
+                    "val_acc": ret['val_acc'],
+                    "val_loss": ret['val_loss'],
+                    "model_name": cfg.model.name,
+                }
+                save_model_with_metadata(model, best_model_path, metadata)
                 if save_to_disk and disk_path is not None:
                     disk_metadata = {
                         "fold": fold_idx + 1,

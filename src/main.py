@@ -133,25 +133,21 @@ def main(cfg: DictConfig) -> None:
         if validation_strategy == "kfold":
             models = train_kfold_models(cfg, kfold_data, device)
             log.info("K-Fold 교차 검증 학습 완료")
-            model_save_cfg = getattr(cfg, "model_save", {})
-            if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
+            if cfg.model_save.wandb_artifact:
                 for fold_idx in range(len(models)):
-                    if model_save_cfg.get("save_best", False):
-                        best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
-                        metadata = {"fold": fold_idx + 1, "type": "best"}
-                        save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
+                    best_model_path = get_model_save_path(cfg, f"best_fold{fold_idx + 1}")
+                    metadata = {"fold": fold_idx + 1, "type": "best"}
+                    save_model_as_artifact(best_model_path, cfg, f"best_fold{fold_idx + 1}", metadata)
             pred_df = run_inference(
                 models, test_loader, test_loader.dataset, cfg, device, is_kfold=True
             )
         else:
             model = train_single_model(cfg, train_loader, val_loader, device)
             log.info("단일 모델 학습 완료")
-            model_save_cfg = getattr(cfg, "model_save", {})
-            if model_save_cfg.get("enabled", False) and model_save_cfg.get("wandb_artifact", False):
-                if model_save_cfg.get("save_best", False):
-                    best_model_path = get_model_save_path(cfg, "best")
-                    metadata = {"type": "best"}
-                    save_model_as_artifact(best_model_path, cfg, "best", metadata)
+            if cfg.model_save.wandb_artifact:
+                best_model_path = get_model_save_path(cfg, "best")
+                metadata = {"type": "best"}
+                save_model_as_artifact(best_model_path, cfg, "best", metadata)
             pred_df = run_inference(
                 model, test_loader, test_loader.dataset, cfg, device, is_kfold=False
             )

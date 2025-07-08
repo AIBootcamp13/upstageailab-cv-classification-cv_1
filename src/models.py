@@ -214,16 +214,14 @@ def load_model_with_metadata(model, path):
 
 def get_model_save_path(cfg, model_type):
     """모델 저장 경로 생성"""
-    if cfg.model_save.enabled:
-        model_dir = cfg.model_save.dir
-        os.makedirs(model_dir, exist_ok=True)
-        
-        # 모델 파일명 생성
-        model_name = cfg.model.name
-        filename = f"{model_name}_{model_type}.pth"
-        return os.path.join(model_dir, filename)
-    else:
-        return None
+    model_dir = cfg.model_save.dir
+    os.makedirs(model_dir, exist_ok=True)
+
+    # 모델 파일명 생성
+    model_name = cfg.model.name
+    seed = getattr(cfg.train, "seed", 0)
+    filename = f"{model_name}_seed{seed}_{model_type}.pth"
+    return os.path.join(model_dir, filename)
 
 
 def get_seed_fold_model_path(cfg, seed: int, fold: int) -> str:
