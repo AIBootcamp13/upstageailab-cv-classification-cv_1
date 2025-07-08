@@ -31,7 +31,6 @@ from torch.utils.data import DataLoader
 import log_util as log
 from data import (
     get_kfold_loaders,
-    get_transforms,
     ImageDataset,
     IndexedImageDataset,
     AugmentedDataset,
@@ -252,8 +251,6 @@ def train_single_model(cfg, train_loader, val_loader, device):
         )
 
     aug_cfg = getattr(cfg, "augment", {})
-    # TTA transform 준비
-    train_transform = get_transforms(cfg, "train_aug_ops")
     
     log.info("학습 시작")
     
@@ -268,15 +265,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
         
         # 검증 (holdout인 경우)
         if val_loader is not None:
-            val_ret = validate_one_epoch(
-                val_loader,
-                model,
-                loss_fn,
-                device,
-                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
-                tta_add_org=getattr(aug_cfg, "valid_tta_add_org", False),
-            )
+            val_ret = validate_one_epoch(val_loader, model, loss_fn, device)
             ret.update(val_ret)
             
             log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
@@ -439,9 +428,6 @@ def train_kfold_models(cfg, kfold_data, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
-                tta_add_org=getattr(aug_cfg, "valid_tta_add_org", False),
             )
             
             # 결과 합치기

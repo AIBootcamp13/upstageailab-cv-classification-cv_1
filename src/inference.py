@@ -17,6 +17,7 @@ import log_util as log
 import pandas as pd
 from torch.utils.data import DataLoader
 from data import ImageDataset, IndexedImageDataset, get_transforms
+from augment import get_tta_transforms
 
 
 def _predict_probs(model, loader, device):
@@ -210,25 +211,27 @@ def upload_to_wandb(pred_df, cfg):
 def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kfold=False):
     """추론 실행 및 결과 저장"""
     # 추론 실행
+    aug_cfg = getattr(cfg, "augment", {})
+    tta_transform = None
+    if aug_cfg.get("test_tta_enabled", True) and aug_cfg.get("test_tta_count", 0) > 0:
+        tta_transform = get_tta_transforms(cfg.data.img_size)
     if is_kfold:
-        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_kfold_ensemble(
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
-            tta_count=getattr(aug_cfg, "test_tta_count", 0),
-            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
+            tta_transform=tta_transform,
+            tta_count=aug_cfg.get("test_tta_count", 0),
+            tta_add_org=False,
         )
     else:
-        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_single_model(
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
-            tta_count=getattr(aug_cfg, "test_tta_count", 0),
-            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
+            tta_transform=tta_transform,
+            tta_count=aug_cfg.get("test_tta_count", 0),
+            tta_add_org=False,
         )
     
     # 결과 저장
