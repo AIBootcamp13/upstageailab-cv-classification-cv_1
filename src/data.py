@@ -110,10 +110,11 @@ class CachedAugmentedDataset(AugmentedDataset):
         base_transform: A.Compose,
         cache_root: str,
         seed: int,
+        img_size: int,
         prefix: str = "aug",
     ):
         super().__init__(base_dataset, num_aug, aug_transform, base_transform)
-        self.cache_dir = os.path.join(cache_root, f"seed_{seed}")
+        self.cache_dir = os.path.join(cache_root, f"img{img_size}_seed{seed}")
         os.makedirs(self.cache_dir, exist_ok=True)
         self.prefix = prefix
 
@@ -150,10 +151,10 @@ class CachedAugmentedDataset(AugmentedDataset):
 class CachedTransformDataset(Dataset):
     """Dataset wrapper applying transform with disk caching."""
 
-    def __init__(self, base_dataset: Dataset, transform: A.Compose, cache_root: str, seed: int, tta_idx: int = 1):
+    def __init__(self, base_dataset: Dataset, transform: A.Compose, cache_root: str, seed: int, img_size: int, tta_idx: int = 1):
         self.base_dataset = base_dataset
         self.transform = transform
-        self.cache_dir = os.path.join(cache_root, f"seed_{seed}")
+        self.cache_dir = os.path.join(cache_root, f"img{img_size}_seed{seed}")
         os.makedirs(self.cache_dir, exist_ok=True)
         self.tta_idx = tta_idx
 
@@ -269,6 +270,7 @@ def prepare_data_loaders(cfg, seed: int):
                 test_t,
                 cache_root,
                 seed,
+                cfg.data.img_size,
                 prefix="aug",
             )
         else:
@@ -281,6 +283,7 @@ def prepare_data_loaders(cfg, seed: int):
                 test_t,
                 cache_root,
                 seed,
+                cfg.data.img_size,
                 prefix="aug",
             )
         else:
@@ -325,6 +328,7 @@ def prepare_data_loaders(cfg, seed: int):
                 test_t,
                 cache_root,
                 seed,
+                cfg.data.img_size,
                 prefix="aug",
             )
         else:
@@ -378,6 +382,7 @@ def get_kfold_loaders(
             base_t,
             cache_root,
             cfg.train.seed,
+            cfg.data.img_size,
             prefix="aug",
         )
     else:
@@ -392,6 +397,7 @@ def get_kfold_loaders(
             base_t,
             cache_root,
             cfg.train.seed,
+            cfg.data.img_size,
             prefix="aug",
         )
     else:

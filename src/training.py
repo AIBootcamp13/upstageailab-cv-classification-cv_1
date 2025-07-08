@@ -115,8 +115,9 @@ def _predict_probs(model, loader, device):
 def _clone_dataset_with_transform(dataset, transform, cache_info=None, tta_idx=1):
     cache_root = None
     seed = None
+    img_size = None
     if cache_info is not None:
-        cache_root, seed = cache_info
+        cache_root, seed, img_size = cache_info
 
     # AugmentedDataset인 경우 base_dataset을 사용
     if hasattr(dataset, "base_dataset"):
@@ -131,8 +132,8 @@ def _clone_dataset_with_transform(dataset, transform, cache_info=None, tta_idx=1
         else:
             base = IndexedImageDataset(base_dataset.df.copy(), base_dataset.path, transform=None, return_filename=True)
 
-        if cache_root and seed is not None:
-            return CachedTransformDataset(base, transform, cache_root, seed, tta_idx)
+        if cache_root and seed is not None and img_size is not None:
+            return CachedTransformDataset(base, transform, cache_root, seed, img_size, tta_idx)
         return type(base)(base.df, base.path, transform=transform)
 
     raise ValueError("Unsupported dataset type for TTA")
