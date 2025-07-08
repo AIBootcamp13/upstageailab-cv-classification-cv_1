@@ -144,14 +144,9 @@ uv run main.py model.name=efficientnetv2_s
 
 #### 증강 설정 변경
 ```bash
-# 증강 방법 변경
-uv run main.py augment.method=augraphy
+# 증강 횟수 조절
+uv run main.py augment.train_aug_count=2
 
-# 증강 강도 조절
-uv run main.py augment.intensity=0.8
-
-# TTA 활성화
-uv run main.py augment.test_tta_count=5
 ```
 
 #### 스케줄러 설정
@@ -260,12 +255,9 @@ validation:
 ### 증강 설정
 ```yaml
 augment:
-  method: "mix"         # "none", "albumentations", "augraphy", "mix"
-  intensity: 1.0        # 증강 강도 (0.0 ~ 1.0)
   train_aug_count: 1    # 훈련 데이터 증강 복사본 수
-  test_tta_count: 1     # 테스트 TTA 복사본 수
-  train_aug_ops: [all]  # 훈련 증강 연산자
-  test_tta_ops: [rotate] # 테스트 TTA 연산자
+  valid_aug_count: 0    # 검증 데이터 증강 복사본 수
+  test_tta_enabled: true # 테스트 시 TTA 사용 여부
 ```
 
 ### 모델 설정

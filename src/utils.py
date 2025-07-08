@@ -99,20 +99,9 @@ def setup_wandb(cfg):
             "mixed_precision_enabled": cfg.train.mixed_precision.enabled,
             
             # Data Augmentation
-            "augment_method": cfg.augment.method,
-            "augment_intensity": cfg.augment.intensity,
             "augment_train_aug_count": cfg.augment.train_aug_count,
             "augment_valid_aug_count": cfg.augment.valid_aug_count,
-            "augment_valid_tta_count": cfg.augment.valid_tta_count,
-            "augment_test_tta_count": cfg.augment.test_tta_count,
-            "augment_train_aug_ops": cfg.augment.train_aug_ops,
-            "augment_valid_aug_ops": cfg.augment.valid_aug_ops,
-            "augment_valid_tta_ops": cfg.augment.valid_tta_ops,
-            "augment_test_tta_ops": cfg.augment.test_tta_ops,
-            "augment_train_aug_add_org": cfg.augment.train_aug_add_org,
-            "augment_valid_aug_add_org": cfg.augment.valid_aug_add_org,
-            "augment_valid_tta_add_org": cfg.augment.valid_tta_add_org,
-            "augment_test_tta_add_org": cfg.augment.test_tta_add_org,
+            "augment_test_tta_enabled": cfg.augment.test_tta_enabled,
             
             # Scheduler
             "scheduler_enabled": cfg.train.scheduler.enabled,

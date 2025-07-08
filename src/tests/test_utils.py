@@ -164,7 +164,10 @@ class TestSetupWandb:
                 'lr': 0.001,
                 'epochs': 10,
                 'batch_size': 32,
-                'seed': 42
+                'seed': 42,
+                'label_smoothing': {'enabled': False, 'smoothing': 0.1},
+                'mixed_precision': {'enabled': False},
+                'scheduler': {'enabled': False, 'name': 'none'}
             },
             'model': {
                 'name': 'resnet18',
@@ -172,8 +175,28 @@ class TestSetupWandb:
                 'pretrained': True
             },
             'data': {
-                'img_size': 224
-            }
+                'img_size': 224,
+                'train_images_path': 'train_path',
+                'test_images_path': 'test_path',
+                'train_csv_path': 'train.csv',
+                'test_csv_path': 'test.csv',
+                'num_workers': 0
+            },
+            'augment': {
+                'train_aug_count': 0,
+                'valid_aug_count': 0,
+                'test_tta_enabled': False
+            },
+            'validation': {
+                'strategy': 'none',
+                'holdout': {'train_ratio': 0.8, 'stratify': True},
+                'kfold': {'n_splits': 2, 'stratify': True},
+                'early_stopping': {'enabled': False, 'patience': 1, 'min_delta': 0.0, 'monitor': 'val_loss', 'mode': 'min'}
+            },
+            'device': 'cpu',
+            'output': {'dir': 'out', 'filename': 'pred.csv'},
+            'model_save': {'enabled': False},
+            'random_seed_ensemble': {'enabled': False, 'count': 1}
         })
         
         setup_wandb(cfg)
@@ -223,9 +246,39 @@ class TestSetupWandb:
                 'tags': [],
                 'notes': ''
             },
-            'train': {'lr': 0.001, 'epochs': 1, 'batch_size': 8, 'seed': 42},
+            'train': {
+                'lr': 0.001,
+                'epochs': 1,
+                'batch_size': 8,
+                'seed': 42,
+                'label_smoothing': {'enabled': False, 'smoothing': 0.1},
+                'mixed_precision': {'enabled': False},
+                'scheduler': {'enabled': False, 'name': 'none'}
+            },
             'model': {'name': 'resnet18', 'num_classes': 10, 'pretrained': False},
-            'data': {'img_size': 32}
+            'data': {
+                'img_size': 32,
+                'train_images_path': 'train',
+                'test_images_path': 'test',
+                'train_csv_path': 'train.csv',
+                'test_csv_path': 'test.csv',
+                'num_workers': 0
+            },
+            'augment': {
+                'train_aug_count': 0,
+                'valid_aug_count': 0,
+                'test_tta_enabled': False
+            },
+            'validation': {
+                'strategy': 'none',
+                'holdout': {'train_ratio': 0.8, 'stratify': True},
+                'kfold': {'n_splits': 2, 'stratify': True},
+                'early_stopping': {'enabled': False, 'patience': 1, 'min_delta': 0.0, 'monitor': 'val_loss', 'mode': 'min'}
+            },
+            'device': 'cpu',
+            'output': {'dir': 'out', 'filename': 'pred.csv'},
+            'model_save': {'enabled': False},
+            'random_seed_ensemble': {'enabled': False, 'count': 1}
         })
         
         setup_wandb(cfg)

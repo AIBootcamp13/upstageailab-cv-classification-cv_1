@@ -22,6 +22,7 @@ from inference import (
     save_predictions,
     upload_to_wandb,
 )
+from augment import get_tta_transforms
 from data import get_transforms
 import numpy as np
 from models import get_model_save_path
@@ -84,13 +85,15 @@ def main(cfg: DictConfig) -> None:
                             last_model_path = get_model_save_path(cfg, f"last_fold{fold_idx + 1}_seed{idx}")
                             metadata = {"fold": fold_idx + 1, "type": "last", "seed": current_seed}
                             save_model_as_artifact(last_model_path, cfg, f"last_fold{fold_idx + 1}_seed{idx}", metadata)
+                tta_transforms = None
+                aug_cfg = getattr(cfg, "augment", {})
+                if aug_cfg.get("test_tta_enabled", True):
+                    tta_transforms = get_tta_transforms(cfg.data.img_size)
                 probs = predict_kfold_ensemble(
                     models,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augment", {}), "test_tta_count", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augment", {}), "test_tta_count", 0),
-                    tta_add_org=getattr(getattr(cfg, "augment", {}), "test_tta_add_org", False),
+                    tta_transforms=tta_transforms,
                     return_probs=True,
                 )
             else:
@@ -106,13 +109,15 @@ def main(cfg: DictConfig) -> None:
                         metadata = {"type": "last", "seed": current_seed}
                         save_model_as_artifact(last_model_path, cfg, f"last_seed{idx}", metadata)
 
+                tta_transforms = None
+                aug_cfg = getattr(cfg, "augment", {})
+                if aug_cfg.get("test_tta_enabled", True):
+                    tta_transforms = get_tta_transforms(cfg.data.img_size)
                 probs = predict_single_model(
                     model,
                     test_loader,
                     device,
-                    tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(getattr(cfg, "augment", {}), "test_tta_count", 0) > 0 else None,
-                    tta_count=getattr(getattr(cfg, "augment", {}), "test_tta_count", 0),
-                    tta_add_org=getattr(getattr(cfg, "augment", {}), "test_tta_add_org", False),
+                    tta_transforms=tta_transforms,
                     return_probs=True,
                 )
 

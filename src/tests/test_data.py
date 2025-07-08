@@ -145,12 +145,9 @@ class TestTransforms:
     def test_get_transforms(self):
         """get_transforms 함수 테스트"""
         img_size = 224
-        cfg = OmegaConf.create({
-            'data': {'img_size': img_size},
-            'augmentation': {'method': 'albumentations', 'intensity': 0.5}
-        })
-        train_transform = get_transforms(cfg, 'train_aug_ops')
-        test_transform = get_transforms(cfg, None)
+        cfg = OmegaConf.create({'data': {'img_size': img_size}})
+        train_transform = get_transforms(cfg, 'train')
+        test_transform = get_transforms(cfg, 'test')
         
         # Transform 객체 확인
         assert train_transform is not None
@@ -345,12 +342,9 @@ class TestKFoldLoaders:
         skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
         self.folds = list(skf.split(self.full_train_df, self.full_train_df['target']))
         
-        cfg = OmegaConf.create({
-            'data': {'img_size': 32},
-            'augmentation': {'method': 'albumentations', 'intensity': 0.0}
-        })
-        self.train_transform = get_transforms(cfg, 'train_aug_ops')
-        self.val_transform = get_transforms(cfg, 'valid_aug_ops')
+        cfg = OmegaConf.create({'data': {'img_size': 32}})
+        self.train_transform = get_transforms(cfg, 'train')
+        self.val_transform = get_transforms(cfg, 'valid')
         
         # 설정 객체
         self.cfg = OmegaConf.create({

@@ -17,6 +17,7 @@ import log_util as log
 import pandas as pd
 from torch.utils.data import DataLoader
 from data import ImageDataset, IndexedImageDataset, get_transforms
+from augment import get_tta_transforms
 
 
 def _predict_probs(model, loader, device):
@@ -40,33 +41,47 @@ def _clone_dataset_with_transform(dataset, transform):
         if isinstance(dataset, ImageDataset):
             df = pd.DataFrame(dataset.df, columns=["ID", "target"])
             return ImageDataset(df, dataset.path, transform=transform)
-        elif isinstance(dataset, IndexedImageDataset):
+        if isinstance(dataset, IndexedImageDataset):
             return IndexedImageDataset(dataset.df.copy(), dataset.path, transform=transform)
-    raise ValueError("Unsupported dataset type for TTA")
+
+    class WrappedDataset(torch.utils.data.Dataset):
+        def __init__(self, base, tf):
+            self.base = base
+            self.tf = tf
+
+        def __len__(self):
+            return len(self.base)
+
+        def __getitem__(self, idx):
+            img, target = self.base[idx]
+            if isinstance(img, torch.Tensor):
+                img = img.permute(1, 2, 0).cpu().numpy()
+            else:
+                img = np.array(img)
+            img = self.tf(image=img)["image"]
+            return img, target
+
+    return WrappedDataset(dataset, transform)
 
 
-def predict_single_model(model, test_loader, device, tta_transform=None, tta_count=0, tta_add_org=False, return_probs=False):
+def predict_single_model(model, test_loader, device, tta_transforms=None, return_probs=False):
     """단일 모델로 추론
 
     Args:
         model: 학습된 모델
         test_loader: 테스트 데이터 로더
         device: 실행 디바이스
-        tta_transform: TTA에 사용할 transform
-        tta_count: TTA 횟수
-        tta_add_org: TTA 시 원본 이미지 포함 여부
+        tta_transforms: 리스트 형태의 TTA transforms
         return_probs: True면 소프트맥스 확률을 반환
     """
     log.info("추론 시작")
 
     model.eval()
 
-    probs = _predict_probs(model, test_loader, device)
-
-    if tta_transform is not None and tta_count > 0:
+    if tta_transforms:
         tta_probs = []
-        for _ in range(tta_count):
-            t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
+        for t in tta_transforms:
+            t_dataset = _clone_dataset_with_transform(test_loader.dataset, t)
             t_loader = DataLoader(
                 t_dataset,
                 batch_size=test_loader.batch_size,
@@ -74,16 +89,10 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
                 num_workers=test_loader.num_workers,
             )
             tta_probs.append(_predict_probs(model, t_loader, device))
-        
-        # TTA 결과 평균 계산
-        tta_avg = np.mean(tta_probs, axis=0)
-        
-        if tta_add_org:
-            # 원본 이미지 포함하여 평균
-            probs = (probs + tta_avg * tta_count) / (tta_count + 1)
-        else:
-            # 원본 이미지 제외하고 TTA 결과만 사용
-            probs = tta_avg
+
+        probs = np.mean(tta_probs, axis=0)
+    else:
+        probs = _predict_probs(model, test_loader, device)
 
     if return_probs:
         return probs
@@ -92,16 +101,14 @@ def predict_single_model(model, test_loader, device, tta_transform=None, tta_cou
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_count=0, tta_add_org=False, return_probs=False):
+def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, return_probs=False):
     """K-Fold 모델들로 앙상블 추론
 
     Args:
         models: 학습된 모델 리스트
         test_loader: 테스트 데이터 로더
         device: 실행 디바이스
-        tta_transform: TTA transform
-        tta_count: TTA 횟수
-        tta_add_org: TTA 시 원본 이미지 포함 여부
+        tta_transforms: 리스트 형태의 TTA transforms
         return_probs: True면 fold 앙상블 확률을 반환
     """
     log.info("K-Fold 앙상블 추론 시작")
@@ -113,12 +120,10 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
         
         model.eval()
 
-        probs = _predict_probs(model, test_loader, device)
-
-        if tta_transform is not None and tta_count > 0:
+        if tta_transforms:
             tta_probs = []
-            for _ in range(tta_count):
-                t_dataset = _clone_dataset_with_transform(test_loader.dataset, tta_transform)
+            for t in tta_transforms:
+                t_dataset = _clone_dataset_with_transform(test_loader.dataset, t)
                 t_loader = DataLoader(
                     t_dataset,
                     batch_size=test_loader.batch_size,
@@ -126,16 +131,10 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transform=None, tta_
                     num_workers=test_loader.num_workers,
                 )
                 tta_probs.append(_predict_probs(model, t_loader, device))
-            
-            # TTA 결과 평균 계산
-            tta_avg = np.mean(tta_probs, axis=0)
-            
-            if tta_add_org:
-                # 원본 이미지 포함하여 평균
-                probs = (probs + tta_avg * tta_count) / (tta_count + 1)
-            else:
-                # 원본 이미지 제외하고 TTA 결과만 사용
-                probs = tta_avg
+
+            probs = np.mean(tta_probs, axis=0)
+        else:
+            probs = _predict_probs(model, test_loader, device)
 
         fold_predictions = probs
         
@@ -210,25 +209,24 @@ def upload_to_wandb(pred_df, cfg):
 def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kfold=False):
     """추론 실행 및 결과 저장"""
     # 추론 실행
+    aug_cfg = getattr(cfg, "augment", {})
+    tta_transforms = None
+    img_size = getattr(getattr(cfg, "data", {}), "img_size", None)
+    if aug_cfg.get("test_tta_enabled", True) and img_size is not None:
+        tta_transforms = get_tta_transforms(img_size)
     if is_kfold:
-        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_kfold_ensemble(
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
-            tta_count=getattr(aug_cfg, "test_tta_count", 0),
-            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
+            tta_transforms=tta_transforms,
         )
     else:
-        aug_cfg = getattr(cfg, "augment", {})
         predictions = predict_single_model(
             models_or_model,
             test_loader,
             device,
-            tta_transform=get_transforms(cfg, "test_tta_ops") if getattr(aug_cfg, "test_tta_count", 0) > 0 else None,
-            tta_count=getattr(aug_cfg, "test_tta_count", 0),
-            tta_add_org=getattr(aug_cfg, "test_tta_add_org", False),
+            tta_transforms=tta_transforms,
         )
     
     # 결과 저장

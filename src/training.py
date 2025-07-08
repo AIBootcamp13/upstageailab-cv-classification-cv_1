@@ -31,7 +31,6 @@ from torch.utils.data import DataLoader
 import log_util as log
 from data import (
     get_kfold_loaders,
-    get_transforms,
     ImageDataset,
     IndexedImageDataset,
     AugmentedDataset,
@@ -128,7 +127,7 @@ def _clone_dataset_with_transform(dataset, transform):
     raise ValueError("Unsupported dataset type for TTA")
 
 
-def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_count=0, tta_add_org=False):
+def validate_one_epoch(loader, model, loss_fn, device):
     """한 에포크 검증"""
     model.eval()
     val_loss = 0
@@ -154,28 +153,6 @@ def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_c
             targets_list.extend(targets.cpu().numpy())
 
     probs = np.concatenate(base_probs_list, axis=0)
-
-    if tta_transform is not None and tta_count > 0:
-        tta_probs = []
-        for _ in range(tta_count):
-            t_dataset = _clone_dataset_with_transform(loader.dataset, tta_transform)
-            t_loader = DataLoader(
-                t_dataset,
-                batch_size=loader.batch_size,
-                shuffle=False,
-                num_workers=loader.num_workers,
-            )
-            tta_probs.append(_predict_probs(model, t_loader, device))
-        
-        # TTA 결과 평균 계산
-        tta_avg = np.mean(tta_probs, axis=0)
-        
-        if tta_add_org:
-            # 원본 이미지 포함하여 평균
-            probs = (probs + tta_avg * tta_count) / (tta_count + 1)
-        else:
-            # 원본 이미지 제외하고 TTA 결과만 사용
-            probs = tta_avg
 
     preds_list = probs.argmax(axis=1)
 
@@ -252,8 +229,6 @@ def train_single_model(cfg, train_loader, val_loader, device):
         )
 
     aug_cfg = getattr(cfg, "augment", {})
-    # TTA transform 준비
-    train_transform = get_transforms(cfg, "train_aug_ops")
     
     log.info("학습 시작")
     
@@ -268,15 +243,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
         
         # 검증 (holdout인 경우)
         if val_loader is not None:
-            val_ret = validate_one_epoch(
-                val_loader,
-                model,
-                loss_fn,
-                device,
-                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
-                tta_add_org=getattr(aug_cfg, "valid_tta_add_org", False),
-            )
+            val_ret = validate_one_epoch(val_loader, model, loss_fn, device)
             ret.update(val_ret)
             
             log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
@@ -439,9 +406,6 @@ def train_kfold_models(cfg, kfold_data, device):
                 model,
                 loss_fn,
                 device,
-                tta_transform=get_transforms(cfg, "valid_tta_ops") if getattr(aug_cfg, "valid_tta_count", 0) > 0 else None,
-                tta_count=getattr(aug_cfg, "valid_tta_count", 0),
-                tta_add_org=getattr(aug_cfg, "valid_tta_add_org", False),
             )
             
             # 결과 합치기

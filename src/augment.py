@@ -1,11 +1,25 @@
+"""Simple augmentation utilities."""
+
+import random
+
 import albumentations as A
+import cv2
 from albumentations.pytorch import ToTensorV2
 from augraphy import (
-    AugraphyPipeline, InkBleed, BleedThrough, ColorPaper, OneOf, NoiseTexturize,
-    SubtleNoise, LightingGradient, ShadowCast
+    AugraphyPipeline,
+    InkBleed,
+    BleedThrough,
+    ColorPaper,
+    OneOf,
+    NoiseTexturize,
+    SubtleNoise,
+    LightingGradient,
+    ShadowCast,
 )
 
-album_transform = A.Compose([
+def get_album_transform(img_size: int) -> A.Compose:
+    """Return simple Albumentations augmentation pipeline."""
+    return A.Compose([
     # 다양한 데이터 증강 기법들
     # A.HorizontalFlip(p=0.5),
     # A.VerticalFlip(p=0.2),
@@ -39,8 +53,8 @@ album_transform = A.Compose([
     # A.PadIfNeeded(min_height=img_size, min_width=img_size,
     #                 border_mode=cv2.BORDER_CONSTANT, value=(255, 255, 255), p=1),    
     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ToTensorV2(),
-])
+        ToTensorV2(),
+    ])
 
 def get_augraphy_pipeline():
     """Augraphy 파이프라인을 반환합니다."""
