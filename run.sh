@@ -4,26 +4,26 @@ cd src
 
 # 이미지 사이즈 비교
 # 실험결과 : 이미지 사이즈가 클수록 성능이 좋아진다. 배치 사이즈가 작을 수록 성능이 좋아진다.
-uv run main.py --config-name=wandb_aug wandb.run_name=rs64_b32 data.img_size=64 train.batch_size=32
-uv run main.py --config-name=wandb_aug wandb.run_name=rs128_b32 data.img_size=128 train.batch_size=32
-uv run main.py --config-name=wandb_aug wandb.run_name=rs224_b32 data.img_size=224 train.batch_size=32
-uv run main.py --config-name=wandb_aug wandb.run_name=rs343_b32 data.img_size=343 train.batch_size=32
-uv run main.py --config-name=wandb_aug wandb.run_name=rs384_b32 data.img_size=384 train.batch_size=32
-uv run main.py --config-name=wandb_aug wandb.run_name=rs480_b32 data.img_size=480 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img64_b32 data.img_size=64 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img128_b32 data.img_size=128 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img224_b32 data.img_size=224 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img343_b32 data.img_size=343 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img384_b32 data.img_size=384 train.batch_size=32
+uv run main.py --config-name=wandb_aug wandb.run_name=img480_b32 data.img_size=480 train.batch_size=32
 
-uv run main.py --config-name=wandb_aug wandb.run_name=rs64_b16 data.img_size=64 train.batch_size=16
-uv run main.py --config-name=wandb_aug wandb.run_name=rs128_b16 data.img_size=128 train.batch_size=16
-uv run main.py --config-name=wandb_aug wandb.run_name=rs224_b16 data.img_size=224 train.batch_size=16
-uv run main.py --config-name=wandb_aug wandb.run_name=rs343_b16 data.img_size=343 train.batch_size=16
-uv run main.py --config-name=wandb_aug wandb.run_name=rs384_b16 data.img_size=384 train.batch_size=16
-uv run main.py --config-name=wandb_aug wandb.run_name=rs480_b16 data.img_size=480 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img64_b16 data.img_size=64 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img128_b16 data.img_size=128 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img224_b16 data.img_size=224 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img343_b16 data.img_size=343 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img384_b16 data.img_size=384 train.batch_size=16
+uv run main.py --config-name=wandb_aug wandb.run_name=img480_b16 data.img_size=480 train.batch_size=16
 
-uv run main.py --config-name=wandb_aug wandb.run_name=rs64_b10 data.img_size=64 train.batch_size=10
-uv run main.py --config-name=wandb_aug wandb.run_name=rs128_b10 data.img_size=128 train.batch_size=10
-uv run main.py --config-name=wandb_aug wandb.run_name=rs224_b10 data.img_size=224 train.batch_size=10
-uv run main.py --config-name=wandb_aug wandb.run_name=rs343_b10 data.img_size=343 train.batch_size=10
-uv run main.py --config-name=wandb_aug wandb.run_name=rs384_b10 data.img_size=384 train.batch_size=10
-uv run main.py --config-name=wandb_aug wandb.run_name=rs480_b10 data.img_size=480 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img64_b10 data.img_size=64 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img128_b10 data.img_size=128 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img224_b10 data.img_size=224 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img343_b10 data.img_size=343 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img384_b10 data.img_size=384 train.batch_size=10
+uv run main.py --config-name=wandb_aug wandb.run_name=img480_b10 data.img_size=480 train.batch_size=10
 
 
 # 학습률
