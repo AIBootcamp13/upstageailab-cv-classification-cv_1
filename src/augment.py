@@ -21,8 +21,8 @@ def get_album_transform(img_size: int) -> A.Compose:
     """Return simple Albumentations augmentation pipeline."""
     return A.Compose([
     # 다양한 데이터 증강 기법들
-    # A.HorizontalFlip(p=0.5),
-    # A.VerticalFlip(p=0.2),
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.2),
     # A.RandomRotate90(p=0.5),
     # A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.3),
     # A.GaussNoise(var_limit=(10.0, 50.0), p=0.2),
