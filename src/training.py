@@ -300,14 +300,7 @@ def train_single_model(cfg, train_loader, val_loader, device, save_to_disk: bool
                 }
                 save_model_with_metadata(model, best_model_path, metadata)
                 if save_to_disk and save_path is not None:
-                    disk_metadata = {
-                        "epoch": best_epoch,
-                        "val_f1": best_metric,
-                        "val_acc": ret['val_acc'],
-                        "val_loss": ret['val_loss'],
-                        "model_name": cfg.model.name,
-                    }
-                    save_model_with_metadata(model, save_path, disk_metadata)
+                    save_model_with_metadata(model, save_path, metadata)
         else:
             # No validation
             log_message = f"Epoch {epoch+1}/{cfg.train.epochs} 완료 - "
@@ -472,15 +465,7 @@ def train_kfold_models(cfg, kfold_data, device, save_to_disk: bool = False, seed
                 }
                 save_model_with_metadata(model, best_model_path, metadata)
                 if save_to_disk and disk_path is not None:
-                    disk_metadata = {
-                        "fold": fold_idx + 1,
-                        "epoch": best_epoch,
-                        "val_f1": best_metric,
-                        "val_acc": ret['val_acc'],
-                        "val_loss": ret['val_loss'],
-                        "model_name": cfg.model.name,
-                    }
-                    save_model_with_metadata(model, disk_path, disk_metadata)
+                    save_model_with_metadata(model, disk_path, metadata)
             
             # Early stopping 체크
             if early_stopping is not None:
