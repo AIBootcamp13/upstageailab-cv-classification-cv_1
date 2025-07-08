@@ -41,122 +41,109 @@ class Model_Ensemble:
             model.eval()
             self.models.append(model)
 
-    def predict(self, image, tta_transforms=None):
-        tta_probs = []
-        if tta_transforms:
-            for tta_transform in tta_transforms:
-                img_tta = tta_transform(image=image)['image'].unsqueeze(0).to(self.device)
-                weighted_probs = None
-                for weight, model in zip(self.weights, self.models):
-                    outputs = model(img_tta)
-                    probs = torch.softmax(outputs, dim=1)
-                    if weighted_probs is None:
-                        weighted_probs = weight * probs
-                    else:
-                        weighted_probs += weight * probs
-                tta_probs.append(weighted_probs)
-            avg_probs = torch.mean(torch.stack(tta_probs), dim=0)
-        else:
-            img_tensor = torch.tensor(image).permute(2,0,1).unsqueeze(0).float().to(self.device)
-            weighted_probs = None
-            for weight, model in zip(self.weights, self.models):
-                outputs = model(img_tensor)
-                probs = torch.softmax(outputs, dim=1)
-                if weighted_probs is None:
-                    weighted_probs = weight * probs
-                else:
-                    weighted_probs += weight * probs
-            avg_probs = weighted_probs
-        return avg_probs
+
 
 def tta(img_size):
-    tta_transforms = []
 
-    # 공통 리사이즈+패딩 transform
-    resize_and_pad = [
+    # 모든 변환에 공통적으로 적용될 전처리
+    base_transform = [
         A.LongestMaxSize(max_size=img_size, interpolation=cv2.INTER_AREA),
         A.PadIfNeeded(min_height=img_size, min_width=img_size,
-                      border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1),
+                      border_mode=cv2.BORDER_CONSTANT, value=(255, 255, 255)),
+    ]
+    # 모든 변환 마지막에 공통적으로 적용될 후처리
+    post_transform = [
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),
     ]
 
-    # 소규모 변화 + 밝기/회전
-    tta_transforms.append(A.Compose(resize_and_pad + [
-        A.OneOf([
-            A.ShiftScaleRotate(shift_limit=0.01, scale_limit=0.02, rotate_limit=5,
-                               border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=0.7),
-            A.Rotate(limit=15, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=0.7),
-        ], p=0.7),
-        A.RandomBrightnessContrast(limit=0.1, p=0.4),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.Normalize(mean=(0.485, 0.456, 0.406),
-                    std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ]))
+    tta_transforms = []
 
-    # 90, 180, 270도 고정 회전
-    for angle in [90, 180, 270]:
-        tta_transforms.append(A.Compose(resize_and_pad + [
-            A.Rotate(limit=[angle, angle], p=1.0, border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255)),
-            A.Normalize(mean=(0.485, 0.456, 0.406),
-                        std=(0.229, 0.224, 0.225)),
-            ToTensorV2(),
-        ]))
+    # 색상 반전
+    tta_transforms.append(A.Compose(base_transform + [
+        A.InvertImg(p=1.0)
+    ] + post_transform))
+    
+    # 노이즈 완화
+    tta_transforms.append(A.Compose(base_transform + [
+        A.MedianBlur(blur_limit=5, p=1.0)
+    ] + post_transform))
+
+    # 좌우 대칭성 
+    tta_transforms.append(A.Compose(base_transform + [
+        A.HorizontalFlip(p=1.0)
+    ] + post_transform))
+    
+    # 회전 대응
+    tta_transforms.append(A.Compose(base_transform + [
+        A.Rotate(limit=10, p=1.0, border_mode=cv2.BORDER_CONSTANT, value=(255,255,255))
+    ] + post_transform))
+
+    # 색상 변형 대응
+    tta_transforms.append(A.Compose(base_transform + [
+        A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=1.0)
+    ] + post_transform))
+    
     return tta_transforms
 
 
-
-def run_inference(ensembler, submission_df, test_path, img_size, save_path, batch_size, num_workers, tta_transforms=False):
-
-    tta_transforms = tta(img_size) if tta_transforms else None
+def run_inference(ensembler, submission_df, test_path, img_size, save_path, batch_size, num_workers, use_tta=False): # [수정] 파라미터 이름 use_tta로 명확화
+    tta_transforms = tta(img_size) if use_tta else None
+    
     test_transform = A.Compose([
         A.LongestMaxSize(max_size=img_size, interpolation=cv2.INTER_AREA),
         A.PadIfNeeded(min_height=img_size, min_width=img_size,
-                      border_mode=cv2.BORDER_CONSTANT, fill=(255, 255, 255), p=1),
-        A.Normalize(mean=(0.485, 0.456, 0.406),
-                    std=(0.229, 0.224, 0.225)),
+                      border_mode=cv2.BORDER_CONSTANT, value=(255, 255, 255)),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ToTensorV2(),
     ])
-    
+
     test_dataset = ImageDataset(submission_df, path=test_path, transform=test_transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     submission_preds = []
+    ensembler.models = [m.eval() for m in ensembler.models]
+
     with torch.no_grad():
         for images, _ in tqdm(test_loader, desc="Inference"):
-            images = images.cpu().permute(0, 2, 3, 1).numpy()  # N,H,W,C
+            images = images.to(ensembler.device)
 
-            for img in images:
-                if tta_transforms is None:
-                    # TTA 없이 단일 예측: 함수 내부에서 만든 transform 사용
-                    img_transformed = test_transform(image=img)['image'].unsqueeze(0).to(ensembler.device)
-                    weighted_probs = None
-                    for weight, model in zip(ensembler.weights, ensembler.models):
-                        outputs = model(img_transformed)
-                        probs = torch.softmax(outputs, dim=1)
-                        if weighted_probs is None:
-                            weighted_probs = weight * probs
-                        else:
-                            weighted_probs += weight * probs
-                    avg_probs = weighted_probs
+            # TTA 로직 전체 수정
+            all_probs_list = []
+
+            # 원본 이미지에 대한 예측을 먼저 수행하여 리스트에 추가
+            weighted_probs_original = None
+            for weight, model in zip(ensembler.weights, ensembler.models):
+                outputs = model(images)
+                probs = torch.softmax(outputs, dim=1)
+                if weighted_probs_original is None:
+                    weighted_probs_original = probs * weight
                 else:
-                    # TTA 수행 후 평균
-                    tta_probs = []
-                    for tta_transform in tta_transforms:
-                        img_tta = tta_transform(image=img)['image'].unsqueeze(0).to(ensembler.device)
-                        weighted_probs = None
-                        for weight, model in zip(ensembler.weights, ensembler.models):
-                            outputs = model(img_tta)
-                            probs = torch.softmax(outputs, dim=1)
-                            if weighted_probs is None:
-                                weighted_probs = weight * probs
-                            else:
-                                weighted_probs += weight * probs
-                        tta_probs.append(weighted_probs)
-                    avg_probs = torch.mean(torch.stack(tta_probs), dim=0)
+                    weighted_probs_original += probs * weight
+            all_probs_list.append(weighted_probs_original)
 
-                pred = torch.argmax(avg_probs, dim=1)
-                submission_preds.extend(pred.cpu().numpy())
+            # TTA가 활성화된 경우, 추가 예측 수행
+            if tta_transforms is not None:
+                for tta_transform in tta_transforms:
+                    imgs_np = images.cpu().permute(0, 2, 3, 1).numpy()
+                    transformed_images = [tta_transform(image=img)['image'] for img in imgs_np]
+                    imgs_tta = torch.stack(transformed_images).to(ensembler.device)
+                    
+                    weighted_probs_tta = None
+                    for weight, model in zip(ensembler.weights, ensembler.models):
+                        outputs = model(imgs_tta)
+                        probs = torch.softmax(outputs, dim=1)
+                        if weighted_probs_tta is None:
+                            weighted_probs_tta = probs * weight
+                        else:
+                            weighted_probs_tta += probs * weight
+                    all_probs_list.append(weighted_probs_tta)
+            
+            # 모든 예측 결과(원본 + TTA)의 평균을 계산
+            avg_probs = torch.mean(torch.stack(all_probs_list), dim=0)
+
+            preds = torch.argmax(avg_probs, dim=1)
+            submission_preds.extend(preds.cpu().numpy())
 
     submission_df["target"] = submission_preds
     submission_df.to_csv(save_path, index=False)

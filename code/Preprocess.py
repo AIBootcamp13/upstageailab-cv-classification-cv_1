@@ -44,7 +44,7 @@ class Augmentation:
                 A.Defocus(radius=(1, 3)),
                 A.MotionBlur(blur_limit=3),
                 A.Blur(blur_limit=3),
-            ], p=0.3),
+            ], p=0.4),
 
             A.OneOf([ # 이미지 잘림: Crop
                 A.RandomCrop(height=int(0.5 * img_size), width=img_size, p=0.3),
@@ -90,7 +90,7 @@ class Augmentation:
                         subtle_range=50,
                         p=0.4
                     )
-                ], p=0.3),
+                ], p=0.4),
             ],
             post_phase=[
                 LightingGradient( # 조명 그라데이션
@@ -206,6 +206,349 @@ class Augmentation:
 
         print("[완료] 클래스별 증강 완료")
         aug_df = pd.DataFrame(augmented_records)
+        
+        aug_image_paths = sorted([os.path.join(self.save_dir, fname) for fname in os.listdir(self.save_dir)])
+        widths, heights, ids = [], [], []
+
+        for img_path in tqdm(aug_image_paths, desc="Generating augmentation metadata"):
+            img_id = os.path.basename(img_path)
+            with Image.open(img_path) as img:
+                w, h = img.size
+            widths.append(w)
+            heights.append(h)
+            ids.append(img_id)
+
+        aug_df = pd.DataFrame({
+            "ID": ids,
+            "width": widths,
+            "height": heights,
+        })
+        aug_df["aspect_ratio"] = aug_df["width"] / aug_df["height"]
+        aug_df["aspect_bin"] = pd.cut(aug_df["aspect_ratio"], bins=4, labels=False)
+        
+        aug_df = aug_df.merge(pd.DataFrame(augmented_records), on="ID", how="left")
+        aug_df["strata"] = aug_df["target"].astype(str) + "_" + aug_df["aspect_bin"].astype(str)
+
         aug_df.to_csv(self.save_csv_path, index=False)
         print(f"[완료] 증강 CSV 저장 완료: {self.save_csv_path}")
         return aug_df
+
+
+
+
+
+
+
+
+
+# def get_albumentations(self, img_size):
+#         return A.Compose([
+#             A.OneOf([
+#                 A.Defocus(radius=(1, 3), p=1.0),
+#                 A.MotionBlur(blur_limit=3, p=1.0),
+#                 A.Blur(blur_limit=3, p=1.0),
+#             ], p=0.4),
+
+#             A.OneOf([
+#                 A.RandomCrop(height=int(0.5 * img_size), width=img_size, p=1.0),
+#                 A.RandomSizedCrop(
+#                     min_max_height=(int(0.9 * img_size), img_size),
+#                     height=img_size, width=img_size,
+#                     size=(img_size, img_size),
+#                     p=1.0),
+#             ], p=0.4),
+
+#             A.OneOf([
+#                 A.Rotate(limit=180, border_mode=0, fill=(255, 255, 255), keep_size=True, p=1.0),
+#                 A.HorizontalFlip(p=1.0),
+#                 A.VerticalFlip(p=1.0),
+#                 A.ShiftScaleRotate(shift_limit=0.01, scale_limit=0.02, rotate_limit=3,
+#                                 border_mode=0, fill=(255, 255, 255), p=1.0),
+#             ], p=0.5),
+
+#             A.OneOf([
+#                 A.RandomGamma(gamma_limit=(80, 120), p=1.0),
+#                 A.CLAHE(clip_limit=1.5, p=1.0),
+#                 A.RandomBrightnessContrast(limit=0.1, p=1.0),
+#             ], p=0.2),
+#         ])
+
+#     def get_augraphy_pipeline(self):
+#         return AugraphyPipeline(
+#             ink_phase=[
+#                 InkBleed(p=0.3),
+#                 BleedThrough(p=0.3),
+#             ],
+#             paper_phase=[
+#                 ColorPaper(p=0.3),
+#                 OneOf([
+#                     NoiseTexturize(
+#                         sigma_range=(5, 15),
+#                         turbulence_range=(3, 9),
+#                         texture_width_range=(50, 500),
+#                         texture_height_range=(50, 500),
+#                         p=0.6
+#                     ),
+#                     SubtleNoise(
+#                         subtle_range=50,
+#                         p=0.4
+#                     )
+#                 ], p=0.4),
+#             ],
+#             post_phase=[
+#                 LightingGradient(
+#                     light_position=None,
+#                     direction=90,
+#                     max_brightness=255,
+#                     min_brightness=0,
+#                     mode="gaussian",
+#                     transparency=0.5,
+#                     p=0.3
+#                 ),
+#                 ShadowCast(
+#                     shadow_side=random.choice(["top", "bottom", "left", "right"]),
+#                     shadow_vertices_range=(2, 3),
+#                     shadow_width_range=(0.5, 0.8),
+#                     shadow_height_range=(0.5, 0.8),
+#                     shadow_color=(0, 0, 0),
+#                     shadow_opacity_range=(0.5, 0.6),
+#                     shadow_iterations_range=(1, 2),
+#                     shadow_blur_kernel_range=(101, 301),
+#                     p=0.4
+#                 ),
+#             ],
+#         )
+
+
+
+
+
+
+#         aug_df.to_csv(self.save_csv_path, index=False)
+#         print(f"[완료] 증강 CSV 저장 완료: {self.save_csv_path}")
+#         return aug_df
+
+
+
+# def _get_augmentation_pipeline(self):
+#     aug_list = []
+
+#     # 기존 Albumentations 증강
+#     albumentations_pipeline = A.Compose([
+#         A.OneOf([  # 흐릿함: blur
+#             A.Defocus(radius=(1, 3), p=1.0),
+#             A.MotionBlur(blur_limit=3, p=1.0),
+#             A.Blur(blur_limit=3, p=1.0),
+#         ], p=0.3),
+
+#         A.OneOf([  # 이미지 잘림: Crop
+#             A.RandomCrop(height=int(0.5 * self.img_size), width=self.img_size, p=1.0),
+#             A.RandomSizedCrop(
+#                 min_max_height=(int(0.9 * self.img_size), self.img_size),
+#                 height=self.img_size, width=self.img_size,
+#                 size=(self.img_size, self.img_size),
+#                 p=1.0),
+#         ], p=0.3),
+
+#         A.OneOf([  # 회전 및 기하 변형
+#             A.Rotate(limit=180, border_mode=0, fill=(255, 255, 255), keep_size=True, p=1.0),
+#             A.HorizontalFlip(p=1.0),
+#             A.VerticalFlip(p=1.0),
+#             A.ShiftScaleRotate(shift_limit=0.01, scale_limit=0.02, rotate_limit=3, border_mode=0, fill=(255, 255, 255), p=1.0),
+#         ], p=0.4),
+
+#         A.OneOf([  # 밝기/대비
+#             A.RandomGamma(gamma_limit=(80, 120), p=1.0),
+#             A.CLAHE(clip_limit=1.5, p=1.0),
+#             A.RandomBrightnessContrast(limit=0.1, p=1.0),
+#         ], p=0.2),
+#     ])
+#     aug_list.append(albumentations_pipeline)
+
+#     # Augraphy 증강
+#     augraphy_pipeline = AugraphyPipeline(
+#         ink_phase=[
+#             InkBleed(p=0.3),  # 잉크 번짐
+#             BleedThrough(p=0.3),  # 뒷면 잉크 비침
+#         ],
+#         paper_phase=[
+#             ColorPaper(p=0.3),  # 종이 색상 변경
+#             AugraphyOneOf([
+#                 NoiseTexturize(  # 테스트 데이터와 비슷한 노이즈
+#                     sigma_range=(5, 15),
+#                     turbulence_range=(3, 9),
+#                     texture_width_range=(50, 500),
+#                     texture_height_range=(50, 500),
+#                     p=0.6
+#                 ),
+#                 SubtleNoise(
+#                     subtle_range=50,
+#                     p=0.4
+#                 )
+#             ], p=0.3),
+#         ],
+#         post_phase=[
+#             LightingGradient(  # 조명 그라데이션
+#                 light_position=None,
+#                 direction=90,
+#                 max_brightness=255,
+#                 min_brightness=0,
+#                 mode="gaussian",
+#                 transparency=0.5,
+#                 p=0.3
+#             ),
+#             ShadowCast(  # 그림자
+#                 shadow_side=random.choice(["top", "bottom", "left", "right"]),
+#                 shadow_vertices_range=(2, 3),
+#                 shadow_width_range=(0.5, 0.8),
+#                 shadow_height_range=(0.5, 0.8),
+#                 shadow_color=(0, 0, 0),
+#                 shadow_opacity_range=(0.5, 0.6),
+#                 shadow_iterations_range=(1, 2),
+#                 shadow_blur_kernel_range=(101, 301),
+#                 p=0.3
+#             ),
+#         ],
+#     )
+#     aug_list.append(augraphy_pipeline)
+
+#     return aug_list
+
+
+
+
+
+
+
+# def _get_augmentation_pipeline(self):
+#         aug_list = []
+
+#         # Augraphy 증강
+#         augraphy_pipeline = AugraphyPipeline(
+#             ink_phase=[
+#                 InkBleed(p=0.5),
+#                 LowInkRandomLines(p=0.5),
+#                 BleedThrough(p=0.3),
+#                 AugraphyOneOf([
+#                     DirtyDrum(p=0.5),
+#                     BadPhotoCopy(p=0.5),
+#                 ], p=0.5),
+#                 AugraphyOneOf([
+#                     SubtleNoise(p=0.4),
+#                     LowLightNoise(p=0.4),
+#                     NoiseTexturize(p=0.4),
+#                 ], p=0.4),
+#             ],
+#             paper_phase=[
+#                 LightingGradient(p=0.5),
+#                 ShadowCast(p=0.5),
+#                 Geometric(scale=(0.9, 1.1), p=1.0),
+#             ],
+#             post_phase=[]
+#         )
+#         aug_list.append(augraphy_pipeline)
+
+#         # Albumentations 증강
+#         albumentations_pipeline = A.Compose([
+#             A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=10, border_mode=0, fill=(255, 255, 255), p=0.5),
+#             A.VerticalFlip(p=0.5),
+#             A.HorizontalFlip(p=0.5),
+#             A.RandomBrightnessContrast(p=0.3),
+#             A.OneOf([
+#                 A.RandomRotate90(p=0.5),
+#                 A.Rotate(limit=90, border_mode=0, fill=(255, 255, 255), p=0.5),
+#             ], p=0.5),
+#             A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.5),
+#             A.ImageCompression(quality_lower=40, quality_upper=80, compression_type='jpeg', p=0.5)
+#         ])
+#         aug_list.append(albumentations_pipeline)
+
+#         return aug_list
+
+
+
+
+# def _get_augmentation_pipeline(self):
+#         aug_list = []
+
+#         # ▶ Albumentations 증강
+#         albumentations_pipeline = A.Compose([
+#             A.OneOf([  # 흐릿함: blur
+#                 A.Defocus(radius=(1, 3), p=1.0),
+#                 A.MotionBlur(blur_limit=3, p=1.0),
+#                 A.Blur(blur_limit=3, p=1.0),
+#             ], p=0.4),
+
+#             A.OneOf([  # 이미지 잘림: Crop
+#                 A.RandomCrop(height=int(0.5 * self.img_size), width=self.img_size, p=1.0),
+#                 A.RandomSizedCrop(
+#                     min_max_height=(int(0.9 * self.img_size), self.img_size),
+#                     height=self.img_size, width=self.img_size,
+#                     size=(self.img_size, self.img_size),
+#                     p=1.0),
+#             ], p=0.4),
+
+#             A.OneOf([  # 회전 및 기하 변형
+#                 A.Rotate(limit=180, border_mode=0, fill=(255, 255, 255), keep_size=True, p=1.0),
+#                 A.HorizontalFlip(p=1.0),
+#                 A.VerticalFlip(p=1.0),
+#                 A.ShiftScaleRotate(shift_limit=0.01, scale_limit=0.02, rotate_limit=3,
+#                                 border_mode=0, fill=(255, 255, 255), p=1.0),
+#             ], p=0.5),
+
+#             A.OneOf([  # 밝기/대비
+#                 A.RandomGamma(gamma_limit=(80, 120), p=1.0),
+#                 A.CLAHE(clip_limit=1.5, p=1.0),
+#                 A.RandomBrightnessContrast(limit=0.1, p=1.0),
+#             ], p=0.2),
+#         ])
+#         aug_list.append(albumentations_pipeline)
+
+#         # ▶ Augraphy 증강
+#         augraphy_pipeline = AugraphyPipeline(
+#             ink_phase=[
+#                 InkBleed(p=0.3),
+#                 BleedThrough(p=0.3),
+#             ],
+#             paper_phase=[
+#                 ColorPaper(p=0.3),
+#                 OneOf([
+#                     NoiseTexturize(
+#                         sigma_range=(5, 15),
+#                         turbulence_range=(3, 9),
+#                         texture_width_range=(50, 500),
+#                         texture_height_range=(50, 500),
+#                         p=0.6
+#                     ),
+#                     SubtleNoise(
+#                         subtle_range=50,
+#                         p=0.4
+#                     )
+#                 ], p=0.4),
+#             ],
+#             post_phase=[
+#                 LightingGradient(
+#                     light_position=None,
+#                     direction=90,
+#                     max_brightness=255,
+#                     min_brightness=0,
+#                     mode="gaussian",
+#                     transparency=0.5,
+#                     p=0.3
+#                 ),
+#                 ShadowCast(
+#                     shadow_side=random.choice(["top", "bottom", "left", "right"]),
+#                     shadow_vertices_range=(2, 3),
+#                     shadow_width_range=(0.5, 0.8),
+#                     shadow_height_range=(0.5, 0.8),
+#                     shadow_color=(0, 0, 0),
+#                     shadow_opacity_range=(0.5, 0.6),
+#                     shadow_iterations_range=(1, 2),
+#                     shadow_blur_kernel_range=(101, 301),
+#                     p=0.4
+#                 ),
+#             ],
+#         )
+#         aug_list.append(augraphy_pipeline)
+
+#         return aug_list

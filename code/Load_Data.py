@@ -32,7 +32,8 @@ from augraphy import (
 
 class ImageDataset(Dataset):
     def __init__(self, df, path, transform=None):
-        self.df = df.values 
+        # self.df = df.values 
+        self.df = df 
         self.path = path
         self.transform = transform
 
@@ -40,12 +41,12 @@ class ImageDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        name, target = self.df[idx]
+        row = self.df.iloc[idx]
+        name, target = row["ID"], row["target"]
         img_path = os.path.join(self.path, name)
         img = np.array(Image.open(img_path).convert("RGB"))
         if self.transform:
             img = self.transform(image=img)['image']
-
         return img, target
 
     
