@@ -148,7 +148,6 @@ def setup_wandb(cfg):
             "model_save_enabled": cfg.model_save.enabled,
             # "model_save_dir": cfg.model_save.dir,
             # "model_save_save_best": cfg.model_save.save_best,
-            # "model_save_save_last": cfg.model_save.save_last,
             # "model_save_wandb_artifact": cfg.model_save.wandb_artifact,
             
             # Random seed ensemble configuration
