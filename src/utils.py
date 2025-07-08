@@ -149,8 +149,8 @@ def setup_wandb(cfg):
             # "model_save_wandb_artifact": cfg.model_save.wandb_artifact,
             
             # Random seed ensemble configuration
-            "random_seed_ensemble_enabled": cfg.random_seed_ensemble.enabled,
-            "random_seed_ensemble_count": cfg.random_seed_ensemble.count,
+            "seed_ensemble_enabled": cfg.seed_ensemble.enabled,
+            "seed_ensemble_count": cfg.seed_ensemble.count,
             
             # W&B configuration
             # "wandb_project": cfg.wandb.project,

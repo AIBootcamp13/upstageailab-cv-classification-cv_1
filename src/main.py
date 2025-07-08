@@ -63,7 +63,7 @@ def main(cfg: DictConfig) -> None:
     log.info("환경 설정 완료")
 
     # 랜덤 시드 앙상블 기능 확인
-    seed_ensemble_cfg = getattr(cfg, "random_seed_ensemble", {"enabled": False})
+    seed_ensemble_cfg = getattr(cfg, "seed_ensemble", {"enabled": False})
     if seed_ensemble_cfg.get("enabled", False):
         ensemble_count = int(seed_ensemble_cfg.get("count", 1))
         model_paths: list[str] = []

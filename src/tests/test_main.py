@@ -266,9 +266,9 @@ wandb:
     @patch('main.setup_wandb')
     @patch('main.finish_wandb')
     @patch('main.log')
-    def test_random_seed_ensemble(self, mock_log, mock_finish_wandb, mock_setup_wandb):
+    def test_seed_ensemble(self, mock_log, mock_finish_wandb, mock_setup_wandb):
         cfg = self.create_test_config('holdout')
-        cfg.random_seed_ensemble = {'enabled': True, 'count': 2}
+        cfg.seed_ensemble = {'enabled': True, 'count': 2}
 
         with patch('main.prepare_data_loaders') as mock_prepare_data, \
              patch('main.train_single_model') as mock_train, \
