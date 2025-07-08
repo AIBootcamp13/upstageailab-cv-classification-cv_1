@@ -143,7 +143,11 @@ class CachedAugmentedDataset(AugmentedDataset):
             torch.save(img_tensor, cache_path)
             # Save jpg for visual confirmation
             jpg_path = cache_path.replace(".pt", ".jpg")
-            np_img = (img_tensor.permute(1, 2, 0).cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+            # Denormalize the tensor for proper visualization
+            mean = np.array([0.485, 0.456, 0.406])
+            std = np.array([0.229, 0.224, 0.225])
+            denormalized = img_tensor.permute(1, 2, 0).cpu().numpy() * std + mean
+            np_img = (denormalized * 255).clip(0, 255).astype(np.uint8)
             Image.fromarray(np_img).save(jpg_path)
         return img_tensor, target, base_idx
 
@@ -180,7 +184,11 @@ class CachedTransformDataset(Dataset):
             img_tensor = self.transform(image=img)["image"]
             torch.save(img_tensor, cache_path)
             jpg_path = cache_path.replace(".pt", ".jpg")
-            np_img = (img_tensor.permute(1, 2, 0).cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+            # Denormalize the tensor for proper visualization
+            mean = np.array([0.485, 0.456, 0.406])
+            std = np.array([0.229, 0.224, 0.225])
+            denormalized = img_tensor.permute(1, 2, 0).cpu().numpy() * std + mean
+            np_img = (denormalized * 255).clip(0, 255).astype(np.uint8)
             Image.fromarray(np_img).save(jpg_path)
         return img_tensor, target, idx
 
