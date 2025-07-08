@@ -94,7 +94,6 @@ def main(cfg: DictConfig) -> None:
                     test_loader,
                     device,
                     tta_transforms=tta_transforms,
-                    tta_add_org=False,
                     return_probs=True,
                 )
             else:
@@ -119,7 +118,6 @@ def main(cfg: DictConfig) -> None:
                     test_loader,
                     device,
                     tta_transforms=tta_transforms,
-                    tta_add_org=False,
                     return_probs=True,
                 )
 

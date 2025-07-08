@@ -64,7 +64,7 @@ def _clone_dataset_with_transform(dataset, transform):
     return WrappedDataset(dataset, transform)
 
 
-def predict_single_model(model, test_loader, device, tta_transforms=None, tta_add_org=False, return_probs=False):
+def predict_single_model(model, test_loader, device, tta_transforms=None, return_probs=False):
     """단일 모델로 추론
 
     Args:
@@ -72,14 +72,11 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, tta_ad
         test_loader: 테스트 데이터 로더
         device: 실행 디바이스
         tta_transforms: 리스트 형태의 TTA transforms
-        tta_add_org: TTA 시 원본 이미지 포함 여부
         return_probs: True면 소프트맥스 확률을 반환
     """
     log.info("추론 시작")
 
     model.eval()
-
-    probs = _predict_probs(model, test_loader, device)
 
     if tta_transforms:
         tta_probs = []
@@ -92,14 +89,10 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, tta_ad
                 num_workers=test_loader.num_workers,
             )
             tta_probs.append(_predict_probs(model, t_loader, device))
-        
-        # TTA 결과 평균 계산
-        tta_avg = np.mean(tta_probs, axis=0)
 
-        if tta_add_org:
-            probs = (probs + tta_avg * len(tta_transforms)) / (len(tta_transforms) + 1)
-        else:
-            probs = tta_avg
+        probs = np.mean(tta_probs, axis=0)
+    else:
+        probs = _predict_probs(model, test_loader, device)
 
     if return_probs:
         return probs
@@ -108,7 +101,7 @@ def predict_single_model(model, test_loader, device, tta_transforms=None, tta_ad
     return preds_list
 
 
-def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, tta_add_org=False, return_probs=False):
+def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, return_probs=False):
     """K-Fold 모델들로 앙상블 추론
 
     Args:
@@ -116,7 +109,6 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, tta
         test_loader: 테스트 데이터 로더
         device: 실행 디바이스
         tta_transforms: 리스트 형태의 TTA transforms
-        tta_add_org: TTA 시 원본 이미지 포함 여부
         return_probs: True면 fold 앙상블 확률을 반환
     """
     log.info("K-Fold 앙상블 추론 시작")
@@ -127,8 +119,6 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, tta
         log.info(f"Fold {fold_idx + 1} 추론 시작")
         
         model.eval()
-
-        probs = _predict_probs(model, test_loader, device)
 
         if tta_transforms:
             tta_probs = []
@@ -141,14 +131,10 @@ def predict_kfold_ensemble(models, test_loader, device, tta_transforms=None, tta
                     num_workers=test_loader.num_workers,
                 )
                 tta_probs.append(_predict_probs(model, t_loader, device))
-            
-            # TTA 결과 평균 계산
-            tta_avg = np.mean(tta_probs, axis=0)
 
-            if tta_add_org:
-                probs = (probs + tta_avg * len(tta_transforms)) / (len(tta_transforms) + 1)
-            else:
-                probs = tta_avg
+            probs = np.mean(tta_probs, axis=0)
+        else:
+            probs = _predict_probs(model, test_loader, device)
 
         fold_predictions = probs
         
@@ -234,7 +220,6 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             test_loader,
             device,
             tta_transforms=tta_transforms,
-            tta_add_org=False,
         )
     else:
         predictions = predict_single_model(
@@ -242,7 +227,6 @@ def run_inference(models_or_model, test_loader, test_dataset, cfg, device, is_kf
             test_loader,
             device,
             tta_transforms=tta_transforms,
-            tta_add_org=False,
         )
     
     # 결과 저장

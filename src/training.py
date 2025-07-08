@@ -127,7 +127,7 @@ def _clone_dataset_with_transform(dataset, transform):
     raise ValueError("Unsupported dataset type for TTA")
 
 
-def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_count=0, tta_add_org=False):
+def validate_one_epoch(loader, model, loss_fn, device):
     """한 에포크 검증"""
     model.eval()
     val_loss = 0
@@ -153,28 +153,6 @@ def validate_one_epoch(loader, model, loss_fn, device, tta_transform=None, tta_c
             targets_list.extend(targets.cpu().numpy())
 
     probs = np.concatenate(base_probs_list, axis=0)
-
-    if tta_transform is not None and tta_count > 0:
-        tta_probs = []
-        for _ in range(tta_count):
-            t_dataset = _clone_dataset_with_transform(loader.dataset, tta_transform)
-            t_loader = DataLoader(
-                t_dataset,
-                batch_size=loader.batch_size,
-                shuffle=False,
-                num_workers=loader.num_workers,
-            )
-            tta_probs.append(_predict_probs(model, t_loader, device))
-        
-        # TTA 결과 평균 계산
-        tta_avg = np.mean(tta_probs, axis=0)
-        
-        if tta_add_org:
-            # 원본 이미지 포함하여 평균
-            probs = (probs + tta_avg * tta_count) / (tta_count + 1)
-        else:
-            # 원본 이미지 제외하고 TTA 결과만 사용
-            probs = tta_avg
 
     preds_list = probs.argmax(axis=1)
 
