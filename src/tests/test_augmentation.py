@@ -12,7 +12,7 @@ from albumentations.pytorch import ToTensorV2
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data import ImageDataset, AugmentedDataset, get_transforms
+from data import ImageDataset, AugmentedDataset, CachedAugmentedDataset, get_transforms
 from inference import predict_single_model
 
 
@@ -45,3 +45,25 @@ def test_predict_single_model_tta():
     model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(32 * 32 * 3, 2))
     preds = predict_single_model(model, loader, torch.device("cpu"))
     assert len(preds) == len(dataset)
+
+
+def test_cached_augmented_dataset(tmp_path):
+    df, img_dir = _create_dummy_dataset(tmp_path, 1)
+    base_ds = ImageDataset(df, img_dir, return_filename=True)
+    aug_t = Compose([Resize(32, 32), Normalize(), ToTensorV2()])
+    base_t = Compose([Resize(32, 32), Normalize(), ToTensorV2()])
+    cache_root = os.path.join(tmp_path, "cache")
+    dataset = CachedAugmentedDataset(
+        base_ds,
+        num_aug=1,
+        aug_transform=aug_t,
+        base_transform=base_t,
+        cache_root=cache_root,
+        seed=42,
+        img_size=32,
+    )
+    img, target, idx = dataset[0]
+    cache_file = os.path.join(cache_root, "img32_seed42", "0_aug_1.pt")
+    assert os.path.exists(cache_file)
+    img2, target2, idx2 = dataset[0]
+    assert torch.equal(img, img2)

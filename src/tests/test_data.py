@@ -274,7 +274,7 @@ class TestDataLoaderPreparation:
         assert kfold_data is not None
         
         # K-Fold 데이터 확인
-        folds, full_train_df, train_images_path, train_transform, val_transform, test_transform = kfold_data
+        folds, full_train_df, train_images_path, train_transform, val_transform, test_transform, cache_root = kfold_data
         assert len(folds) == 3
         assert len(full_train_df) == 60
         assert train_images_path == os.path.join(self.data_dir, "train")
@@ -364,6 +364,7 @@ class TestKFoldLoaders:
             self.train_transform,
             self.val_transform,
             self.cfg,
+            os.path.join(self.data_dir, "cache"),
         )
         
         # 반환값 확인

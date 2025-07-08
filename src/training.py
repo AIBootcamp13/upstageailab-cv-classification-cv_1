@@ -34,6 +34,7 @@ from data import (
     ImageDataset,
     IndexedImageDataset,
     AugmentedDataset,
+    CachedTransformDataset,
 )
 from models import setup_model_and_optimizer, save_model_with_metadata, get_model_save_path
 from utils import EarlyStopping
@@ -111,19 +112,30 @@ def _predict_probs(model, loader, device):
     return np.concatenate(probs, axis=0)
 
 
-def _clone_dataset_with_transform(dataset, transform):
+def _clone_dataset_with_transform(dataset, transform, cache_info=None, tta_idx=1):
+    cache_root = None
+    seed = None
+    img_size = None
+    if cache_info is not None:
+        cache_root, seed, img_size = cache_info
+
     # AugmentedDataset인 경우 base_dataset을 사용
     if hasattr(dataset, "base_dataset"):
         base_dataset = dataset.base_dataset
-        if hasattr(base_dataset, "df") and hasattr(base_dataset, "path"):
-            return IndexedImageDataset(base_dataset.df.copy(), base_dataset.path, transform=transform)
-    
-    if hasattr(dataset, "df") and hasattr(dataset, "path"):
-        if isinstance(dataset, ImageDataset):
-            df = pd.DataFrame(dataset.df, columns=["ID", "target"])
-            return ImageDataset(df, dataset.path, transform=transform)
-        elif isinstance(dataset, IndexedImageDataset):
-            return IndexedImageDataset(dataset.df.copy(), dataset.path, transform=transform)
+    else:
+        base_dataset = dataset
+
+    if hasattr(base_dataset, "df") and hasattr(base_dataset, "path"):
+        if isinstance(base_dataset, ImageDataset):
+            df = base_dataset.df if isinstance(base_dataset.df, pd.DataFrame) else pd.DataFrame(base_dataset.df, columns=["ID", "target"])
+            base = ImageDataset(df, base_dataset.path, transform=None, return_filename=True)
+        else:
+            base = IndexedImageDataset(base_dataset.df.copy(), base_dataset.path, transform=None, return_filename=True)
+
+        if cache_root and seed is not None and img_size is not None:
+            return CachedTransformDataset(base, transform, cache_root, seed, img_size, tta_idx)
+        return type(base)(base.df, base.path, transform=transform)
+
     raise ValueError("Unsupported dataset type for TTA")
 
 
@@ -346,7 +358,7 @@ def train_single_model(cfg, train_loader, val_loader, device):
 
 def train_kfold_models(cfg, kfold_data, device):
     """K-Fold 교차 검증 학습"""
-    folds, full_train_df, data_path, train_transform, val_transform, test_transform = kfold_data
+    folds, full_train_df, data_path, train_transform, val_transform, test_transform, cache_root = kfold_data
     n_splits = len(folds)
     models = []
     aug_cfg = getattr(cfg, "augment", {})
@@ -363,6 +375,7 @@ def train_kfold_models(cfg, kfold_data, device):
             train_transform,
             val_transform,
             cfg,
+            cache_root,
         )
         
         # 모델 초기화
