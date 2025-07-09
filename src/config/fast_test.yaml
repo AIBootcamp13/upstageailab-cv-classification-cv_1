@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - config
+
+# Fast test configuration
+model:
+  name: "resnet18"
+  num_classes: 17
+  pretrained: true
+
+train:
+  lr: 1e-3
+  epochs: 1
+  batch_size: 64
+  seed: 42
+
+data:
+  img_size: 64
+  num_workers: 0 

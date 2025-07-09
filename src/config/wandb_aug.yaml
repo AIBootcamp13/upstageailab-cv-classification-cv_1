@@ -1,0 +1,47 @@
+# @package _global_
+defaults:
+  - config
+  - _self_
+
+# Fast test configuration
+model:
+  name: "efficientnetv2_rw_t"
+  num_classes: 17
+  pretrained: true
+
+data:  
+  img_size: 224
+  num_workers: 0 
+
+train:
+  lr: 1e-3
+  epochs: 100
+  batch_size: 16
+  seed: 42
+  
+  # Label Smoothing configuration
+  label_smoothing:
+    enabled: true
+    smoothing: 0.1  # 0.0 ~ 1.0, 일반적으로 0.1
+  
+  # Mixed Precision Training configuration
+  mixed_precision:
+    enabled: true
+
+# Data augmentation configuration
+augment:
+  train_aug_count: 3       # number of augmented copies per train image
+  valid_aug_count: 3       # number of augmented copies per valid image
+  test_tta_enabled: true   # apply TTA on test dataset
+
+
+# Device configuration
+device: "auto"  # "cuda" or "cpu" or "mps" or "auto"
+
+wandb:
+  enabled: true
+  project: null
+  entity: null  # will be loaded from .env file
+  run_name: "jhryu_v6_augment"  # auto-generated if null
+  tags: []
+  notes: ""

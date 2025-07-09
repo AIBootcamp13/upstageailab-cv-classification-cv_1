@@ -10,8 +10,14 @@ data.tar.gz
 meta.csv
 sample_submission.csv
 train.csv
-output/
+# output/
 
 # 개인 작업 중 추가되는 파일 무시
 *.yml
-*.csv
+# *.csv
+*.pth
+.env
+wandb/
+outputs/
+augraphy_cache/
+fonts/
