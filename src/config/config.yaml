@@ -102,8 +102,8 @@ valid:
     enabled: true
     patience: 15
     min_delta: 0.001
-    monitor: "val_loss"  # "val_loss", "val_acc", "val_f1"
-    mode: "min"  # "min" for loss, "max" for accuracy/f1
+    monitor: "val_f1"  # "val_loss", "val_acc", "val_f1"
+    mode: "max"  # "min" for loss, "max" for accuracy/f1
 
 # Device configuration
 device: "auto"  # "cuda" or "cpu" or "mps" or "auto"
