@@ -70,3 +70,9 @@ uv run main.py --config-name=wandb_aug wandb.run_name=aug_11 augment.train_aug_c
 # TTA 테스트
 uv run main.py --config-name=wandb_aug wandb.run_name=tta_false augment.test_tta_enabled=false
 uv run main.py --config-name=wandb_aug wandb.run_name=tta_true augment.test_tta_enabled=true
+
+# valid 증강 테스트
+uv run main.py --config-name=wandb_aug wandb.run_name=aug_train3_val0 augment.train_aug_count=3 augment.valid_aug_count=0
+uv run main.py --config-name=wandb_aug wandb.run_name=aug_train3_val1 augment.train_aug_count=3 augment.valid_aug_count=1
+uv run main.py --config-name=wandb_aug wandb.run_name=aug_train3_val2 augment.train_aug_count=3 augment.valid_aug_count=2
+uv run main.py --config-name=wandb_aug wandb.run_name=aug_train3_val3 augment.train_aug_count=3 augment.valid_aug_count=3
