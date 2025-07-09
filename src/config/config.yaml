@@ -12,6 +12,12 @@ data:
   
   img_size: 32
   num_workers: 0
+  
+  # Cache configuration
+  cache:
+    disk_cache: true                # 디스크 캐시 온/오프
+    dir: "../input/data/train_cache" # 캐시 폴더 경로 (main.py 기준 상대 경로)
+    memory_cache: true             # 메모리 캐시 온/오프 (디스크 캐시와 무관하게 동작)
 
 # Model configuration
 model:

@@ -112,13 +112,22 @@ class CachedAugmentedDataset(AugmentedDataset):
         seed: int,
         img_size: int,
         prefix: str = "aug",
+        memory_cache: bool = False,
+        disk_cache: bool = True,
     ):
         super().__init__(base_dataset, num_aug, aug_transform, base_transform)
         self.cache_dir = os.path.join(cache_root, f"img{img_size}_seed{seed}")
         os.makedirs(self.cache_dir, exist_ok=True)
         self.prefix = prefix
+        self.memory_cache = memory_cache
+        self._memory_cache = {} if memory_cache else None
+        self.disk_cache = disk_cache
 
     def __getitem__(self, idx: int):
+        # 메모리 캐시가 활성화된 경우 먼저 확인
+        if self.memory_cache and idx in self._memory_cache:
+            return self._memory_cache[idx]
+        
         base_idx = idx % len(self.base_dataset)
         item = self.base_dataset[base_idx]
         if len(item) == 3:
@@ -133,38 +142,51 @@ class CachedAugmentedDataset(AugmentedDataset):
         aug_idx = idx // len(self.base_dataset) + 1
         base_name = os.path.splitext(os.path.basename(name))[0]
         cache_path = os.path.join(self.cache_dir, f"{base_name}_{self.prefix}_{aug_idx}.pt")
-        if os.path.exists(cache_path):
+        if self.disk_cache and os.path.exists(cache_path):
             img_tensor = torch.load(cache_path)
         else:
             if self.num_aug == 0:
                 img_tensor = self.base_transform(image=img)["image"]
             else:
                 img_tensor = self.aug_transform(image=img)["image"]
-            torch.save(img_tensor, cache_path)
-            # Save jpg for visual confirmation
-            jpg_path = cache_path.replace(".pt", ".jpg")
-            # Denormalize the tensor for proper visualization
-            mean = np.array([0.485, 0.456, 0.406])
-            std = np.array([0.229, 0.224, 0.225])
-            denormalized = img_tensor.permute(1, 2, 0).cpu().numpy() * std + mean
-            np_img = (denormalized * 255).clip(0, 255).astype(np.uint8)
-            Image.fromarray(np_img).save(jpg_path)
+            if self.disk_cache:
+                torch.save(img_tensor, cache_path)
+                # Save jpg for visual confirmation
+                jpg_path = cache_path.replace(".pt", ".jpg")
+                # Denormalize the tensor for proper visualization
+                mean = np.array([0.485, 0.456, 0.406])
+                std = np.array([0.229, 0.224, 0.225])
+                denormalized = img_tensor.permute(1, 2, 0).cpu().numpy() * std + mean
+                np_img = (denormalized * 255).clip(0, 255).astype(np.uint8)
+                Image.fromarray(np_img).save(jpg_path)
+        
+        # 메모리 캐시에 저장
+        if self.memory_cache:
+            self._memory_cache[idx] = (img_tensor, target, base_idx)
+        
         return img_tensor, target, base_idx
 
 
 class CachedBasicTransformDataset(Dataset):
     """Dataset wrapper applying basic transform with disk caching."""
 
-    def __init__(self, base_dataset: Dataset, transform: A.Compose, cache_root: str, seed: int, img_size: int):
+    def __init__(self, base_dataset: Dataset, transform: A.Compose, cache_root: str, seed: int, img_size: int, memory_cache: bool = False, disk_cache: bool = True):
         self.base_dataset = base_dataset
         self.transform = transform
         self.cache_dir = os.path.join(cache_root, f"img{img_size}_seed{seed}")
         os.makedirs(self.cache_dir, exist_ok=True)
+        self.memory_cache = memory_cache
+        self._memory_cache = {} if memory_cache else None
+        self.disk_cache = disk_cache
 
     def __len__(self) -> int:
         return len(self.base_dataset)
 
     def __getitem__(self, idx: int):
+        # 메모리 캐시가 활성화된 경우 먼저 확인
+        if self.memory_cache and idx in self._memory_cache:
+            return self._memory_cache[idx]
+        
         item = self.base_dataset[idx]
         if len(item) == 3:
             img, target, name = item
@@ -177,11 +199,17 @@ class CachedBasicTransformDataset(Dataset):
 
         base_name = os.path.splitext(os.path.basename(name))[0]
         cache_path = os.path.join(self.cache_dir, f"{base_name}.pt")
-        if os.path.exists(cache_path):
+        if self.disk_cache and os.path.exists(cache_path):
             img_tensor = torch.load(cache_path)
         else:
             img_tensor = self.transform(image=img)["image"]
-            torch.save(img_tensor, cache_path)
+            if self.disk_cache:
+                torch.save(img_tensor, cache_path)
+        
+        # 메모리 캐시에 저장
+        if self.memory_cache:
+            self._memory_cache[idx] = (img_tensor, target)
+        
         return img_tensor, target
 
 
@@ -292,7 +320,60 @@ def prepare_data_loaders(cfg, seed: int):
 
     aug_cfg = getattr(cfg, "augment", {})
     strategy = cfg.valid.strategy
-    cache_root = os.path.join(os.path.dirname(train_images_path), "train_cache")
+    
+    # 캐시 설정 읽기
+    cache_cfg = getattr(cfg.data, "cache", {})
+    disk_cache = cache_cfg.get("disk_cache", True)
+    cache_dir = cache_cfg.get("dir", "train_cache")
+    memory_cache = cache_cfg.get("memory_cache", False)
+    
+    # 캐시 루트 경로 설정 (main.py 기준 상대 경로)
+    if disk_cache:
+        if os.path.isabs(cache_dir):
+            cache_root = cache_dir
+        else:
+            # main.py가 실행되는 위치 기준으로 계산
+            main_dir = os.getcwd()
+            cache_root = os.path.join(main_dir, cache_dir)
+    else:
+        cache_root = None  # 사용하지 않음
+
+    def make_train_ds(base_ds, t, aug_count, is_train):
+        if aug_count > 0:
+            if disk_cache:
+                return CachedAugmentedDataset(
+                    base_ds, aug_count, t, test_t, cache_root, seed, cfg.data.img_size, prefix="aug", memory_cache=memory_cache, disk_cache=True
+                )
+            else:
+                return AugmentedDataset(base_ds, aug_count, t, test_t)
+        else:
+            if disk_cache:
+                return CachedBasicTransformDataset(
+                    base_ds, t, cache_root, seed, cfg.data.img_size, memory_cache=memory_cache, disk_cache=True
+                )
+            else:
+                # transform만 적용, 캐싱 없음, 메모리 캐시만 사용
+                class MemoryOnlyDataset(Dataset):
+                    def __init__(self, base_dataset, transform, memory_cache):
+                        self.base_dataset = base_dataset
+                        self.transform = transform
+                        self.memory_cache = memory_cache
+                        self._memory_cache = {} if memory_cache else None
+                    def __len__(self):
+                        return len(self.base_dataset)
+                    def __getitem__(self, idx):
+                        if self.memory_cache and idx in self._memory_cache:
+                            return self._memory_cache[idx]
+                        item = self.base_dataset[idx]
+                        if len(item) == 3:
+                            img, target, name = item
+                        else:
+                            img, target = item
+                        img_tensor = self.transform(image=img)["image"]
+                        if self.memory_cache:
+                            self._memory_cache[idx] = (img_tensor, target)
+                        return img_tensor, target
+                return MemoryOnlyDataset(base_ds, t, memory_cache)
 
     if strategy == "holdout":
         train_df, val_df = _split_holdout(
@@ -301,49 +382,10 @@ def prepare_data_loaders(cfg, seed: int):
             cfg.valid.holdout.stratify,
             seed,
         )
-        train_ds = IndexedImageDataset(train_df, train_images_path, transform=None, return_filename=True)
-        val_ds = IndexedImageDataset(val_df, train_images_path, transform=None, return_filename=True)
-        if aug_cfg.get("train_aug_count", 0) > 0:
-            train_ds = CachedAugmentedDataset(
-                train_ds,
-                aug_cfg.get("train_aug_count", 0),
-                train_t,
-                test_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-                prefix="aug",
-            )
-        else:
-            # 기본 transform도 캐싱 사용
-            train_ds = CachedBasicTransformDataset(
-                train_ds,
-                train_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-            )
-        if aug_cfg.get("valid_aug_count", 0) > 0:
-            val_ds = CachedAugmentedDataset(
-                val_ds,
-                aug_cfg.get("valid_aug_count", 0),
-                val_t,
-                test_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-                prefix="aug",
-            )
-        else:
-            # 기본 transform도 캐싱 사용
-            val_ds = CachedBasicTransformDataset(
-                val_ds,
-                val_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-            )
-
+        train_base = IndexedImageDataset(train_df, train_images_path, transform=None, return_filename=True)
+        val_base = IndexedImageDataset(val_df, train_images_path, transform=None, return_filename=True)
+        train_ds = make_train_ds(train_base, train_t, aug_cfg.get("train_aug_count", 0), is_train=True)
+        val_ds = make_train_ds(val_base, val_t, aug_cfg.get("valid_aug_count", 0), is_train=False)
         train_loader = DataLoader(
             train_ds,
             batch_size=batch_size,
@@ -374,27 +416,8 @@ def prepare_data_loaders(cfg, seed: int):
         )
 
     if strategy == "none":
-        train_ds = IndexedImageDataset(full_train_df, train_images_path, transform=None, return_filename=True)
-        if aug_cfg.get("train_aug_count", 0) > 0:
-            train_ds = CachedAugmentedDataset(
-                train_ds,
-                aug_cfg.get("train_aug_count", 0),
-                train_t,
-                test_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-                prefix="aug",
-            )
-        else:
-            # 기본 transform도 캐싱 사용
-            train_ds = CachedBasicTransformDataset(
-                train_ds,
-                train_t,
-                cache_root,
-                seed,
-                cfg.data.img_size,
-            )
+        train_base = IndexedImageDataset(full_train_df, train_images_path, transform=None, return_filename=True)
+        train_ds = make_train_ds(train_base, train_t, aug_cfg.get("train_aug_count", 0), is_train=True)
         train_loader = DataLoader(
             train_ds,
             batch_size=batch_size,
@@ -428,6 +451,11 @@ def get_kfold_loaders(
     cfg,
     cache_root: str,
 ):
+    # 캐시 설정 읽기
+    cache_cfg = getattr(cfg.data, "cache", {})
+    disk_cache = cache_cfg.get("disk_cache", True)
+    memory_cache = cache_cfg.get("memory_cache", False)
+
     train_idx, val_idx = folds[fold_idx]
     train_df = full_train_df.iloc[train_idx]
     val_df = full_train_df.iloc[val_idx]
@@ -435,49 +463,46 @@ def get_kfold_loaders(
     aug_cfg = getattr(cfg, "augment", {})
     base_t = _basic_transform(cfg.data.img_size)
 
-    train_ds = IndexedImageDataset(train_df, train_images_path, transform=None, return_filename=True)
-    if aug_cfg.get("train_aug_count", 0) > 0:
-        train_ds = CachedAugmentedDataset(
-            train_ds,
-            aug_cfg.get("train_aug_count", 0),
-            train_transform,
-            base_t,
-            cache_root,
-            cfg.train.seed,
-            cfg.data.img_size,
-            prefix="aug",
-        )
-    else:
-        # 기본 transform도 캐싱 사용
-        train_ds = CachedBasicTransformDataset(
-            train_ds,
-            train_transform,
-            cache_root,
-            cfg.train.seed,
-            cfg.data.img_size,
-        )
+    def make_ds(base_ds, t, aug_count, is_train):
+        if aug_count > 0:
+            if disk_cache:
+                return CachedAugmentedDataset(
+                    base_ds, aug_count, t, base_t, cache_root, cfg.train.seed, cfg.data.img_size, prefix="aug", memory_cache=memory_cache, disk_cache=True
+                )
+            else:
+                return AugmentedDataset(base_ds, aug_count, t, base_t)
+        else:
+            if disk_cache:
+                return CachedBasicTransformDataset(
+                    base_ds, t, cache_root, cfg.train.seed, cfg.data.img_size, memory_cache=memory_cache, disk_cache=True
+                )
+            else:
+                class MemoryOnlyDataset(Dataset):
+                    def __init__(self, base_dataset, transform, memory_cache):
+                        self.base_dataset = base_dataset
+                        self.transform = transform
+                        self.memory_cache = memory_cache
+                        self._memory_cache = {} if memory_cache else None
+                    def __len__(self):
+                        return len(self.base_dataset)
+                    def __getitem__(self, idx):
+                        if self.memory_cache and idx in self._memory_cache:
+                            return self._memory_cache[idx]
+                        item = self.base_dataset[idx]
+                        if len(item) == 3:
+                            img, target, name = item
+                        else:
+                            img, target = item
+                        img_tensor = self.transform(image=img)["image"]
+                        if self.memory_cache:
+                            self._memory_cache[idx] = (img_tensor, target)
+                        return img_tensor, target
+                return MemoryOnlyDataset(base_ds, t, memory_cache)
 
-    val_ds = IndexedImageDataset(val_df, train_images_path, transform=None, return_filename=True)
-    if aug_cfg.get("valid_aug_count", 0) > 0:
-        val_ds = CachedAugmentedDataset(
-            val_ds,
-            aug_cfg.get("valid_aug_count", 0),
-            val_transform,
-            base_t,
-            cache_root,
-            cfg.train.seed,
-            cfg.data.img_size,
-            prefix="aug",
-        )
-    else:
-        # 기본 transform도 캐싱 사용
-        val_ds = CachedBasicTransformDataset(
-            val_ds,
-            val_transform,
-            cache_root,
-            cfg.train.seed,
-            cfg.data.img_size,
-        )
+    train_base = IndexedImageDataset(train_df, train_images_path, transform=None, return_filename=True)
+    val_base = IndexedImageDataset(val_df, train_images_path, transform=None, return_filename=True)
+    train_ds = make_ds(train_base, train_transform, aug_cfg.get("train_aug_count", 0), is_train=True)
+    val_ds = make_ds(val_base, val_transform, aug_cfg.get("valid_aug_count", 0), is_train=False)
 
     train_loader = DataLoader(
         train_ds,

@@ -486,6 +486,43 @@ class TestCachedBasicTransformDataset:
         assert torch.equal(img_tensor, dummy_tensor)
         assert target == 0
 
+    def test_cached_basic_transform_dataset_with_memory_cache(self):
+        """메모리 캐싱 기능 테스트"""
+        from data import CachedBasicTransformDataset
+        
+        # 메모리 캐싱 활성화된 캐시 데이터셋 생성
+        cached_dataset = CachedBasicTransformDataset(
+            self.base_dataset,
+            self.transform,
+            self.cache_root,
+            self.seed,
+            self.img_size,
+            memory_cache=True
+        )
+        
+        # 길이 확인
+        assert len(cached_dataset) == 1
+        
+        # 첫 번째 호출 - 캐시 파일 생성 및 메모리에 저장
+        img_tensor, target = cached_dataset[0]
+        assert isinstance(img_tensor, torch.Tensor)
+        assert img_tensor.shape == (3, 16, 16)  # C, H, W
+        assert target == 0
+        
+        # 캐시 파일 존재 확인
+        cache_dir = os.path.join(self.cache_root, f"img{self.img_size}_seed{self.seed}")
+        cache_path = os.path.join(cache_dir, "test.pt")
+        assert os.path.exists(cache_path)
+        
+        # 두 번째 호출 - 메모리에서 로드 (파일 I/O 없음)
+        img_tensor2, target2 = cached_dataset[0]
+        assert torch.equal(img_tensor, img_tensor2)
+        assert target2 == 0
+        
+        # 메모리 캐시에 저장되었는지 확인
+        assert 0 in cached_dataset._memory_cache
+        assert cached_dataset._memory_cache[0] == (img_tensor, target)
+
 
 if __name__ == "__main__":
     pytest.main([__file__]) 
