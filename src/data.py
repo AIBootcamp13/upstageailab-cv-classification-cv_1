@@ -152,6 +152,39 @@ class CachedAugmentedDataset(AugmentedDataset):
         return img_tensor, target, base_idx
 
 
+class CachedBasicTransformDataset(Dataset):
+    """Dataset wrapper applying basic transform with disk caching."""
+
+    def __init__(self, base_dataset: Dataset, transform: A.Compose, cache_root: str, seed: int, img_size: int):
+        self.base_dataset = base_dataset
+        self.transform = transform
+        self.cache_dir = os.path.join(cache_root, f"img{img_size}_seed{seed}")
+        os.makedirs(self.cache_dir, exist_ok=True)
+
+    def __len__(self) -> int:
+        return len(self.base_dataset)
+
+    def __getitem__(self, idx: int):
+        item = self.base_dataset[idx]
+        if len(item) == 3:
+            img, target, name = item
+        else:
+            img, target = item
+            if hasattr(self.base_dataset, "get_filename"):
+                name = self.base_dataset.get_filename(idx)
+            else:
+                name = f"{idx}.jpg"
+
+        base_name = os.path.splitext(os.path.basename(name))[0]
+        cache_path = os.path.join(self.cache_dir, f"{base_name}.pt")
+        if os.path.exists(cache_path):
+            img_tensor = torch.load(cache_path)
+        else:
+            img_tensor = self.transform(image=img)["image"]
+            torch.save(img_tensor, cache_path)
+        return img_tensor, target
+
+
 class CachedTransformDataset(Dataset):
     """Dataset wrapper applying transform with disk caching."""
 
@@ -282,7 +315,14 @@ def prepare_data_loaders(cfg, seed: int):
                 prefix="aug",
             )
         else:
-            train_ds = IndexedImageDataset(train_df, train_images_path, transform=train_t, return_filename=True)
+            # 기본 transform도 캐싱 사용
+            train_ds = CachedBasicTransformDataset(
+                train_ds,
+                train_t,
+                cache_root,
+                seed,
+                cfg.data.img_size,
+            )
         if aug_cfg.get("valid_aug_count", 0) > 0:
             val_ds = CachedAugmentedDataset(
                 val_ds,
@@ -295,7 +335,14 @@ def prepare_data_loaders(cfg, seed: int):
                 prefix="aug",
             )
         else:
-            val_ds = IndexedImageDataset(val_df, train_images_path, transform=val_t, return_filename=True)
+            # 기본 transform도 캐싱 사용
+            val_ds = CachedBasicTransformDataset(
+                val_ds,
+                val_t,
+                cache_root,
+                seed,
+                cfg.data.img_size,
+            )
 
         train_loader = DataLoader(
             train_ds,
@@ -340,7 +387,14 @@ def prepare_data_loaders(cfg, seed: int):
                 prefix="aug",
             )
         else:
-            train_ds = IndexedImageDataset(full_train_df, train_images_path, transform=train_t, return_filename=True)
+            # 기본 transform도 캐싱 사용
+            train_ds = CachedBasicTransformDataset(
+                train_ds,
+                train_t,
+                cache_root,
+                seed,
+                cfg.data.img_size,
+            )
         train_loader = DataLoader(
             train_ds,
             batch_size=batch_size,
@@ -394,7 +448,14 @@ def get_kfold_loaders(
             prefix="aug",
         )
     else:
-        train_ds = IndexedImageDataset(train_df, train_images_path, transform=train_transform, return_filename=True)
+        # 기본 transform도 캐싱 사용
+        train_ds = CachedBasicTransformDataset(
+            train_ds,
+            train_transform,
+            cache_root,
+            cfg.train.seed,
+            cfg.data.img_size,
+        )
 
     val_ds = IndexedImageDataset(val_df, train_images_path, transform=None, return_filename=True)
     if aug_cfg.get("valid_aug_count", 0) > 0:
@@ -409,7 +470,14 @@ def get_kfold_loaders(
             prefix="aug",
         )
     else:
-        val_ds = IndexedImageDataset(val_df, train_images_path, transform=val_transform, return_filename=True)
+        # 기본 transform도 캐싱 사용
+        val_ds = CachedBasicTransformDataset(
+            val_ds,
+            val_transform,
+            cache_root,
+            cfg.train.seed,
+            cfg.data.img_size,
+        )
 
     train_loader = DataLoader(
         train_ds,
