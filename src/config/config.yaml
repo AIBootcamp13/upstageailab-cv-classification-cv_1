@@ -94,7 +94,7 @@ valid:
   # Early stopping configuration
   early_stopping:
     enabled: true
-    patience: 10
+    patience: 15
     min_delta: 0.001
     monitor: "val_loss"  # "val_loss", "val_acc", "val_f1"
     mode: "min"  # "min" for loss, "max" for accuracy/f1
