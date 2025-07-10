@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Competition 발표 - 데이터 증강 및 성능 개선</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .presentation-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide {
+            display: none;
+            width: 95%;
+            max-width: 1400px;
+            height: 85vh;
+            aspect-ratio: 16/9;
+            padding: 30px;
+            text-align: center;
+            animation: slideIn 0.5s ease-in-out;
+            overflow-y: auto;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide h2 {
+            font-size: 2.8rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+
+        .slide h3 {
+            font-size: 2rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: #a0a0a0;
+        }
+
+        .slide p {
+            font-size: 1.3rem;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            color: #e0e0e0;
+        }
+
+        .slide ul {
+            text-align: left;
+            margin: 20px auto;
+            max-width: 800px;
+            font-size: 1.2rem;
+            line-height: 1.8;
+        }
+
+        .slide li {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+            color: #e0e0e0;
+        }
+
+        .slide li:before {
+            content: "▶";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+        }
+
+        .image-container {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide img {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 2px solid #667eea;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid #667eea;
+            border-radius: 25px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .nav-btn:disabled:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1rem;
+            color: #a0a0a0;
+        }
+
+        .title-slide {
+            background: radial-gradient(circle at center, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        }
+
+        .content-slide {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+            height: 100%;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .column h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-align: center;
+        }
+
+        .column p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .column img {
+            max-width: 100%;
+            max-height: 40vh;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            border: 2px solid #667eea;
+            margin-top: auto;
+        }
+
+        .highlight {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #f8f8f2;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            z-index: 1001;
+        }
+
+        @media (max-width: 768px) {
+            .slide {
+                padding: 20px;
+                width: 95%;
+                height: auto;
+                min-height: 85vh;
+            }
+            
+            .slide h1 {
+                font-size: 2.5rem;
+            }
+            
+            .slide h2 {
+                font-size: 2rem;
+            }
+            
+            .slide p, .slide li {
+                font-size: 1.1rem;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .column h3 {
+                font-size: 1.6rem;
+            }
+
+            .column p {
+                font-size: 1rem;
+            }
+
+            .column img {
+                max-height: 30vh;
+            }
+
+            .code-block {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+    
+    <div class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">4</span>
+    </div>
+
+    <div class="presentation-container">
+        <!-- Slide 1: 메인 제목 -->
+        <div class="slide active title-slide">
+            <h1>CV Competition</h1>
+            <h2>데이터 증강 및 성능 개선 연구</h2>
+            <p style="font-size: 1.5rem; margin-top: 50px;">
+                이미지 분류 성능 향상을 위한<br>
+                <span class="highlight">데이터 증강 및 최적화 기법</span> 분석
+            </p>
+            <p style="font-size: 1.2rem; margin-top: 30px; color: #a0a0a0;">
+                AI Bootcamp CV Competition
+            </p>
+        </div>
+
+        <!-- Slide 2: 데이터 증강 분석 -->
+        <div class="slide content-slide">
+            <h2 style="margin-bottom: 30px;">데이터 증강 분석</h2>
+            <div class="two-column">
+                <div class="column">
+                    <h3>훈련 데이터 증강 개수에 따른 성능 변화</h3>
+                    <p>• 이미지당 증강 개수에 따른 스코어 변화 분석</p>
+                    <p>• <span class="highlight">9배, 10배부터 성능이 비슷해지는 경향</span></p>
+                    <p>• 적정 증강 개수를 통한 효율적인 학습</p>
+                    <img src="img1_aug.png" alt="훈련 데이터 증강 성능 변화">
+                </div>
+                <div class="column">
+                    <h3>검증 데이터 증강 개수에 따른 성능 변화</h3>
+                    <p>• 훈련 데이터: 이미지당 증강 3개</p>
+                    <p>• 검증 데이터: 이미지당 증강 0~3개 테스트</p>
+                    <p>• <span class="highlight">검증 데이터 증강 개수 변화 시 val_f1 스코어에 변화 없음</span></p>
+                    <p>→ <span class="highlight">검증 데이터는 증강 불필요</span></p>
+                    <img src="img2_aug_val.png" alt="검증 데이터 증강 성능 변화">
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: 성능 최적화 기법 -->
+        <div class="slide content-slide">
+            <h2 style="margin-bottom: 30px;">성능 최적화 기법</h2>
+            <div class="two-column">
+                <div class="column">
+                    <h3>라벨 스무딩 (Label Smoothing)</h3>
+                    <p>• 라벨 스무딩 <span class="highlight">0.1 ~ 0.2</span> 적용</p>
+                    <p>• <span class="highlight">검증데이터 F1 스코어 그래프 안정화</span> 효과 확인</p>
+                    <p>• 과적합 방지 및 일반화 성능 향상</p>
+                    <img src="img3_label.png" alt="라벨 스무딩 효과">
+                </div>
+                <div class="column">
+                    <h3>파일 저장 방식 최적화</h3>
+                    <p>• <strong>파일명 규칙:</strong> <span class="highlight">{imgname}_aug{num}.jpg</span> 형식으로 원본 이미지 식별 가능</p>
+                    <p>• <strong>데이터셋 분리:</strong> train/valid 분리 시 증강 이미지 구분 가능</p>
+                    <p>• <strong>성능 최적화:</strong> Transform된 Tensor를 <span class="highlight">.pt</span>로 저장하여 로딩 속도 개선</p>
+                    <div class="code-block" style="margin-top: 20px; font-size: 0.9rem;">
+# 예시: 저장 방식
+original_image.jpg → original_image_aug1.pt
+                  → original_image_aug2.pt
+                  → original_image_aug3.pt
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: 실험 관리 및 도구 -->
+        <div class="slide content-slide">
+            <h2 style="margin-bottom: 30px;">실험 관리 및 도구</h2>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Hydra 설정 관리</h3>
+                    <p>• <span class="highlight">YAML 파일</span>로 다양한 파라미터 관리</p>
+                    <p>• 모델 종류, 학습률, 배치사이즈, 에폭, 이미지사이즈</p>
+                    <p>• 증강 개수, holdout/kfold 여부, 시드 앙상블</p>
+                    <p>• <span class="highlight">프로그램 실행 시 다양한 설정 가능</span></p>
+                    <div class="code-block" style="margin-top: 20px; font-size: 0.9rem;">
+# config.yaml 예시
+model:
+  name: efficientnet_v2_l
+  image_size: 480
+  batch_size: 16
+augmentation:
+  count: 3
+  use_tta: true
+training:
+  learning_rate: 0.001
+  label_smoothing: 0.1
+                    </div>
+                </div>
+                <div class="column">
+                    <h3>Wandb 실험 추적</h3>
+                    <p>• <span class="highlight">다양한 실험 결과를 체계적으로 저장</span></p>
+                    <p>• 성능 지표, 하이퍼파라미터, 모델 아티팩트 관리</p>
+                    <p>• 실험 간 비교 및 최적 모델 선택</p>
+                    <p>• <span class="highlight">재현 가능한 실험 환경 구축</span></p>
+                    <div class="code-block" style="margin-top: 20px; font-size: 0.9rem;">
+# wandb 로깅 예시
+wandb.log({
+    "epoch": epoch,
+    "train_loss": train_loss,
+    "val_f1": val_f1,
+    "val_accuracy": val_acc,
+    "learning_rate": lr
+})
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" id="prevBtn">◀ 이전</button>
+        <button class="nav-btn" id="nextBtn">다음 ▶</button>
+    </div>
+
+    <script>
+        let currentSlideIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const currentSlideSpan = document.getElementById('currentSlide');
+        const totalSlidesSpan = document.getElementById('totalSlides');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        totalSlidesSpan.textContent = totalSlides;
+
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('active', index === currentSlideIndex);
+            });
+            
+            currentSlideSpan.textContent = currentSlideIndex + 1;
+            progressBar.style.width = ((currentSlideIndex + 1) / totalSlides) * 100 + '%';
+            
+            prevBtn.disabled = currentSlideIndex === 0;
+            nextBtn.disabled = currentSlideIndex === totalSlides - 1;
+        }
+
+        function nextSlide() {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                updateSlide();
+            }
+        }
+
+        nextBtn.addEventListener('click', nextSlide);
+        prevBtn.addEventListener('click', prevSlide);
+
+        // 키보드 네비게이션
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevSlide();
+            }
+        });
+
+        // 터치 스와이프 지원
+        let startX = 0;
+        let endX = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            endX = e.changedTouches[0].clientX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            const threshold = 50;
+            const difference = startX - endX;
+
+            if (Math.abs(difference) > threshold) {
+                if (difference > 0) {
+                    nextSlide();
+                } else {
+                    prevSlide();
+                }
+            }
+        }
+
+        // 초기 설정
+        updateSlide();
+
+        // 풀스크린 토글 (F11 키)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F11') {
+                e.preventDefault();
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
