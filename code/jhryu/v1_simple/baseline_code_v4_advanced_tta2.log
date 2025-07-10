@@ -1,0 +1,89 @@
+[25-07-03 13:00:31] [INFO] 완전한 재현성 설정이 활성화되었습니다.
+[25-07-03 13:00:31] [INFO] Using device: cuda
+[25-07-03 13:00:31] [INFO] Train samples: 1256
+[25-07-03 13:00:31] [INFO] Validation samples: 314
+[25-07-03 13:00:31] [INFO] Train dataset: 1256
+[25-07-03 13:00:31] [INFO] Validation dataset: 314
+[25-07-03 13:00:31] [INFO] Test dataset: 3140
+[25-07-03 13:00:41] [INFO] Model: efficientnet_b3
+[25-07-03 13:00:41] [INFO] Number of parameters: 10,722,361
+[25-07-03 13:00:41] [INFO] Starting training...
+[25-07-03 13:00:41] [INFO] 
+=== Epoch 1/20 ===
+[25-07-03 13:02:56] [INFO] 💾 Best model saved! F1: 0.8204
+[25-07-03 13:02:56] [INFO] train_train_loss: 1.9920 | train_train_acc: 0.5207 | train_train_f1: 0.4830 | train_epoch: 0.0000 | val_loss: 1.2115 | val_acc: 0.8344 | val_f1: 0.8204 | epoch: 0.0000 | lr: 0.0002
+[25-07-03 13:02:56] [INFO] 
+=== Epoch 2/20 ===
+[25-07-03 13:04:13] [INFO] 💾 Best model saved! F1: 0.8392
+[25-07-03 13:04:13] [INFO] train_train_loss: 1.1605 | train_train_acc: 0.8049 | train_train_f1: 0.7786 | train_epoch: 1.0000 | val_loss: 1.0589 | val_acc: 0.8535 | val_f1: 0.8392 | epoch: 1.0000 | lr: 0.0002
+[25-07-03 13:04:13] [INFO] 
+=== Epoch 3/20 ===
+[25-07-03 13:05:31] [INFO] 💾 Best model saved! F1: 0.8617
+[25-07-03 13:05:31] [INFO] train_train_loss: 1.0383 | train_train_acc: 0.8551 | train_train_f1: 0.8407 | train_epoch: 2.0000 | val_loss: 0.9833 | val_acc: 0.8726 | val_f1: 0.8617 | epoch: 2.0000 | lr: 0.0002
+[25-07-03 13:05:31] [INFO] 
+=== Epoch 4/20 ===
+[25-07-03 13:06:44] [INFO] 💾 Best model saved! F1: 0.8726
+[25-07-03 13:06:44] [INFO] train_train_loss: 0.9625 | train_train_acc: 0.8774 | train_train_f1: 0.8661 | train_epoch: 3.0000 | val_loss: 0.9455 | val_acc: 0.8854 | val_f1: 0.8726 | epoch: 3.0000 | lr: 0.0002
+[25-07-03 13:06:44] [INFO] 
+=== Epoch 5/20 ===
+[25-07-03 13:07:59] [INFO] 💾 Best model saved! F1: 0.8887
+[25-07-03 13:07:59] [INFO] train_train_loss: 0.8859 | train_train_acc: 0.9076 | train_train_f1: 0.9007 | train_epoch: 4.0000 | val_loss: 0.9284 | val_acc: 0.9045 | val_f1: 0.8887 | epoch: 4.0000 | lr: 0.0002
+[25-07-03 13:07:59] [INFO] 
+=== Epoch 6/20 ===
+[25-07-03 13:09:18] [INFO] 💾 Best model saved! F1: 0.9073
+[25-07-03 13:09:18] [INFO] train_train_loss: 0.8511 | train_train_acc: 0.9236 | train_train_f1: 0.9135 | train_epoch: 5.0000 | val_loss: 0.9107 | val_acc: 0.9140 | val_f1: 0.9073 | epoch: 5.0000 | lr: 0.0002
+[25-07-03 13:09:18] [INFO] 
+=== Epoch 7/20 ===
+[25-07-03 13:11:17] [INFO] train_train_loss: 0.8278 | train_train_acc: 0.9291 | train_train_f1: 0.9238 | train_epoch: 6.0000 | val_loss: 0.9089 | val_acc: 0.9108 | val_f1: 0.8999 | epoch: 6.0000 | lr: 0.0001
+[25-07-03 13:11:17] [INFO] 
+=== Epoch 8/20 ===
+[25-07-03 13:12:43] [INFO] train_train_loss: 0.7884 | train_train_acc: 0.9530 | train_train_f1: 0.9477 | train_epoch: 7.0000 | val_loss: 0.8879 | val_acc: 0.9076 | val_f1: 0.8994 | epoch: 7.0000 | lr: 0.0001
+[25-07-03 13:12:43] [INFO] 
+=== Epoch 9/20 ===
+[25-07-03 13:14:00] [INFO] train_train_loss: 0.7582 | train_train_acc: 0.9602 | train_train_f1: 0.9581 | train_epoch: 8.0000 | val_loss: 0.8881 | val_acc: 0.9076 | val_f1: 0.8990 | epoch: 8.0000 | lr: 0.0001
+[25-07-03 13:14:00] [INFO] 
+=== Epoch 10/20 ===
+[25-07-03 13:15:18] [INFO] 💾 Best model saved! F1: 0.9073
+[25-07-03 13:15:18] [INFO] train_train_loss: 0.7555 | train_train_acc: 0.9610 | train_train_f1: 0.9594 | train_epoch: 9.0000 | val_loss: 0.8734 | val_acc: 0.9108 | val_f1: 0.9073 | epoch: 9.0000 | lr: 0.0001
+[25-07-03 13:15:18] [INFO] 
+=== Epoch 11/20 ===
+[25-07-03 13:16:35] [INFO] 💾 Best model saved! F1: 0.9158
+[25-07-03 13:16:35] [INFO] train_train_loss: 0.7520 | train_train_acc: 0.9594 | train_train_f1: 0.9569 | train_epoch: 10.0000 | val_loss: 0.8621 | val_acc: 0.9204 | val_f1: 0.9158 | epoch: 10.0000 | lr: 0.0001
+[25-07-03 13:16:35] [INFO] 
+=== Epoch 12/20 ===
+[25-07-03 13:18:26] [INFO] train_train_loss: 0.7238 | train_train_acc: 0.9777 | train_train_f1: 0.9764 | train_epoch: 11.0000 | val_loss: 0.8842 | val_acc: 0.9108 | val_f1: 0.9009 | epoch: 11.0000 | lr: 0.0001
+[25-07-03 13:18:26] [INFO] 
+=== Epoch 13/20 ===
+[25-07-03 13:20:58] [INFO] train_train_loss: 0.7165 | train_train_acc: 0.9761 | train_train_f1: 0.9758 | train_epoch: 12.0000 | val_loss: 0.8593 | val_acc: 0.9204 | val_f1: 0.9142 | epoch: 12.0000 | lr: 0.0001
+[25-07-03 13:20:58] [INFO] 
+=== Epoch 14/20 ===
+[25-07-03 13:23:46] [INFO] 💾 Best model saved! F1: 0.9203
+[25-07-03 13:23:46] [INFO] train_train_loss: 0.7247 | train_train_acc: 0.9737 | train_train_f1: 0.9719 | train_epoch: 13.0000 | val_loss: 0.8635 | val_acc: 0.9236 | val_f1: 0.9203 | epoch: 13.0000 | lr: 0.0000
+[25-07-03 13:23:46] [INFO] 
+=== Epoch 15/20 ===
+[25-07-03 13:25:54] [INFO] train_train_loss: 0.7058 | train_train_acc: 0.9801 | train_train_f1: 0.9792 | train_epoch: 14.0000 | val_loss: 0.8579 | val_acc: 0.9140 | val_f1: 0.9106 | epoch: 14.0000 | lr: 0.0000
+[25-07-03 13:25:54] [INFO] 
+=== Epoch 16/20 ===
+[25-07-03 13:27:26] [INFO] 💾 Best model saved! F1: 0.9227
+[25-07-03 13:27:26] [INFO] train_train_loss: 0.7076 | train_train_acc: 0.9769 | train_train_f1: 0.9744 | train_epoch: 15.0000 | val_loss: 0.8610 | val_acc: 0.9236 | val_f1: 0.9227 | epoch: 15.0000 | lr: 0.0000
+[25-07-03 13:27:26] [INFO] 
+=== Epoch 17/20 ===
+[25-07-03 13:28:28] [INFO] 💾 Best model saved! F1: 0.9227
+[25-07-03 13:28:28] [INFO] train_train_loss: 0.7098 | train_train_acc: 0.9777 | train_train_f1: 0.9753 | train_epoch: 16.0000 | val_loss: 0.8560 | val_acc: 0.9268 | val_f1: 0.9227 | epoch: 16.0000 | lr: 0.0000
+[25-07-03 13:28:28] [INFO] 
+=== Epoch 18/20 ===
+[25-07-03 13:29:43] [INFO] train_train_loss: 0.7076 | train_train_acc: 0.9809 | train_train_f1: 0.9802 | train_epoch: 17.0000 | val_loss: 0.8524 | val_acc: 0.9236 | val_f1: 0.9203 | epoch: 17.0000 | lr: 0.0000
+[25-07-03 13:29:43] [INFO] 
+=== Epoch 19/20 ===
+[25-07-03 13:31:12] [INFO] 💾 Best model saved! F1: 0.9266
+[25-07-03 13:31:12] [INFO] train_train_loss: 0.6943 | train_train_acc: 0.9865 | train_train_f1: 0.9844 | train_epoch: 18.0000 | val_loss: 0.8424 | val_acc: 0.9299 | val_f1: 0.9266 | epoch: 18.0000 | lr: 0.0000
+[25-07-03 13:31:12] [INFO] 
+=== Epoch 20/20 ===
+[25-07-03 13:32:50] [INFO] train_train_loss: 0.7048 | train_train_acc: 0.9785 | train_train_f1: 0.9771 | train_epoch: 19.0000 | val_loss: 0.8533 | val_acc: 0.9236 | val_f1: 0.9203 | epoch: 19.0000 | lr: 0.0000
+[25-07-03 13:32:50] [INFO] 
+🏆 Loading best model (F1: 0.9266)
+[25-07-03 13:32:50] [INFO] 
+Starting inference with Test Time Augmentation...
+[25-07-03 13:41:13] [INFO] 
+✅ Prediction completed and saved to ./output/pred_advanced_tta2.csv
+[25-07-03 13:41:13] [INFO] Best validation F1 score: 0.9266
