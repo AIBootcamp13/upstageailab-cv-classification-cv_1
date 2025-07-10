@@ -141,10 +141,15 @@ def main(cfg: DictConfig) -> None:
                 models, test_loader, test_loader.dataset, cfg, device, is_kfold=True
             )
         else:
-            model = train_single_model(cfg, train_loader, val_loader, device)
+            # Best model을 디스크에 저장하고 로드해서 사용
+            best_model_path = train_single_model(cfg, train_loader, val_loader, device, save_to_disk=True)
             log.info("단일 모델 학습 완료")
+            
+            # Best model 로드
+            model = load_model_for_inference(cfg, best_model_path, device)
+            log.info("Best model 로드 완료")
+            
             if cfg.model_save.wandb_artifact:
-                best_model_path = get_seed_fold_model_path(cfg, cfg.train.seed, 0)
                 metadata = {"fold": 0, "type": "best"}
                 save_model_as_artifact(best_model_path, cfg, "best", metadata)
             pred_df = run_inference(
