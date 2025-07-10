@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 from omegaconf import OmegaConf
+import torch
 
 # 상위 디렉토리를 path에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -348,7 +349,7 @@ class TestKFoldLoaders:
         
         # 설정 객체
         self.cfg = OmegaConf.create({
-            'train': {'batch_size': 8},
+            'train': {'batch_size': 8, 'seed': 42},
             'data': {'num_workers': 0, 'img_size': 32}
         })
     
@@ -380,6 +381,147 @@ class TestKFoldLoaders:
         # 데이터 로더 확인
         assert len(train_loader.dataset) == len(train_df)  # type: ignore
         assert len(val_loader.dataset) == len(val_df)  # type: ignore
+
+
+class TestCachedBasicTransformDataset:
+    """CachedBasicTransformDataset 클래스 테스트"""
+    
+    def setup_method(self):
+        """테스트 데이터 준비"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.data_dir = os.path.join(self.temp_dir, "data")
+        os.makedirs(self.data_dir)
+        
+        # 더미 이미지 생성
+        self.img_name = "test.jpg"
+        img = Image.new('RGB', (32, 32), color='red')
+        img.save(os.path.join(self.data_dir, self.img_name))
+        
+        # 데이터프레임 생성
+        self.df = pd.DataFrame({
+            'ID': [self.img_name],
+            'target': [0]
+        })
+        
+        # Transform 설정
+        from albumentations import Compose, Resize, Normalize
+        from albumentations.pytorch import ToTensorV2
+        
+        self.transform = Compose([
+            Resize(16, 16),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2()
+        ])
+        
+        # 캐시 디렉토리
+        self.cache_root = os.path.join(self.temp_dir, "cache")
+        self.seed = 42
+        self.img_size = 16
+        
+        # 기본 데이터셋
+        from data import IndexedImageDataset
+        self.base_dataset = IndexedImageDataset(self.df, self.data_dir, transform=None, return_filename=True)
+    
+    def teardown_method(self):
+        """테스트 후 정리"""
+        import shutil
+        shutil.rmtree(self.temp_dir)
+    
+    def test_cached_basic_transform_dataset(self):
+        """CachedBasicTransformDataset 기본 기능 테스트"""
+        from data import CachedBasicTransformDataset
+        
+        # 캐시 데이터셋 생성
+        cached_dataset = CachedBasicTransformDataset(
+            self.base_dataset,
+            self.transform,
+            self.cache_root,
+            self.seed,
+            self.img_size
+        )
+        
+        # 길이 확인
+        assert len(cached_dataset) == 1
+        
+        # 첫 번째 호출 - 캐시 파일 생성
+        img_tensor, target = cached_dataset[0]
+        assert isinstance(img_tensor, torch.Tensor)
+        assert img_tensor.shape == (3, 16, 16)  # C, H, W
+        assert target == 0
+        
+        # 캐시 파일 존재 확인
+        cache_dir = os.path.join(self.cache_root, f"img{self.img_size}_seed{self.seed}")
+        cache_path = os.path.join(cache_dir, "test.pt")
+        assert os.path.exists(cache_path)
+        
+        # 두 번째 호출 - 캐시에서 로드
+        img_tensor2, target2 = cached_dataset[0]
+        assert torch.equal(img_tensor, img_tensor2)
+        assert target2 == 0
+    
+    def test_cached_basic_transform_dataset_with_existing_cache(self):
+        """기존 캐시가 있는 경우 테스트"""
+        from data import CachedBasicTransformDataset
+        
+        # 캐시 디렉토리 미리 생성
+        cache_dir = os.path.join(self.cache_root, f"img{self.img_size}_seed{self.seed}")
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # 더미 캐시 파일 생성
+        cache_path = os.path.join(cache_dir, "test.pt")
+        dummy_tensor = torch.randn(3, 16, 16)
+        torch.save(dummy_tensor, cache_path)
+        
+        # 캐시 데이터셋 생성
+        cached_dataset = CachedBasicTransformDataset(
+            self.base_dataset,
+            self.transform,
+            self.cache_root,
+            self.seed,
+            self.img_size
+        )
+        
+        # 캐시에서 로드되는지 확인
+        img_tensor, target = cached_dataset[0]
+        assert torch.equal(img_tensor, dummy_tensor)
+        assert target == 0
+
+    def test_cached_basic_transform_dataset_with_memory_cache(self):
+        """메모리 캐싱 기능 테스트"""
+        from data import CachedBasicTransformDataset
+        
+        # 메모리 캐싱 활성화된 캐시 데이터셋 생성
+        cached_dataset = CachedBasicTransformDataset(
+            self.base_dataset,
+            self.transform,
+            self.cache_root,
+            self.seed,
+            self.img_size,
+            memory_cache=True
+        )
+        
+        # 길이 확인
+        assert len(cached_dataset) == 1
+        
+        # 첫 번째 호출 - 캐시 파일 생성 및 메모리에 저장
+        img_tensor, target = cached_dataset[0]
+        assert isinstance(img_tensor, torch.Tensor)
+        assert img_tensor.shape == (3, 16, 16)  # C, H, W
+        assert target == 0
+        
+        # 캐시 파일 존재 확인
+        cache_dir = os.path.join(self.cache_root, f"img{self.img_size}_seed{self.seed}")
+        cache_path = os.path.join(cache_dir, "test.pt")
+        assert os.path.exists(cache_path)
+        
+        # 두 번째 호출 - 메모리에서 로드 (파일 I/O 없음)
+        img_tensor2, target2 = cached_dataset[0]
+        assert torch.equal(img_tensor, img_tensor2)
+        assert target2 == 0
+        
+        # 메모리 캐시에 저장되었는지 확인
+        assert 0 in cached_dataset._memory_cache
+        assert cached_dataset._memory_cache[0] == (img_tensor, target)
 
 
 if __name__ == "__main__":
