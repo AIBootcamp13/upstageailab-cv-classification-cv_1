@@ -58,7 +58,7 @@ from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
 
-from train_transform import train_transform
+from train_advenced_transform import train_transform
 
 # 시드를 고정합니다.
 SEED = 42
@@ -135,7 +135,7 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # data config
-data_path = '../input/data'
+data_path = '../data'
 
 # model config
 model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
