@@ -157,14 +157,19 @@
 
 ### Model Description
 
-본 프로젝트에서는 **EfficientNet 계열 모델**을 주력으로 사용하여 문서 분류 성능을 극대화했습니다.
+본 프로젝트에서는 **EfficientNet, Convnext 계열 모델**을 주력으로 사용하여 문서 분류 성능을 극대화했습니다.
 
 #### 사용된 모델 아키텍처
 
-- **EfficientNet-B3**: 초기 베이스라인 모델로 사용
+- **ResNet-34**: 초기 베이스라인 모델로 사용
 - **EfficientNetV2-L**: 대용량 모델로 성능 개선
 - **EfficientNetV2-XL**: 최고 성능을 위한 초대형 모델
 - **EfficientNetV2-RW-M**: 효율성과 성능의 균형을 위한 모델
+- **ConvNeXt-Base**: 기본 ConvNeXt 모델로 균형잡힌 성능
+- **ConvNeXt-XLarge**: 대용량 ConvNeXt 모델로 높은 성능
+- **ConvNeXtV2-Base**: 개선된 ConvNeXt 아키텍처의 기본 모델
+- **ConvNeXtV2-Large**: 개선된 ConvNeXt 아키텍처의 대용량 모델
+- **ConvNeXtV2-Huge**: 개선된 ConvNeXt 아키텍처의 초대형 모델
 
 #### 모델 선택 이유
 
@@ -182,7 +187,7 @@
 
 #### 2. EfficientNet 시리즈 실험
 - **EfficientNet-B3**: 첫 번째 주요 모델
-- **EfficientNetV2-L/XL**: 대용량 모델로 성능 향상
+- **EfficientNetV2-L/XL, Convnext**: 대용량 모델로 성능 향상
 - **이미지 크기**: 320×320 → 480×480 (점진적 증가)
 - **배치 크기**: 32 → 16 (메모리 효율성 고려)
 
@@ -222,23 +227,28 @@
 
 #### 최종 성능 결과
 
-- **최고 성능 모델**: EfficientNetV2-XL + K-Fold 앙상블 + TTA
+- **최고 성능 모델**: ConvnextV2-Base + 10x Aug + TTA
 - **검증 성능**: 
-  - F1 Score: 0.93+ (검증 데이터 기준)
-  - Accuracy: 0.93+ (검증 데이터 기준)
+  - F1 Score: 0.9481 (검증 데이터 기준)
+  - 리더보드: 0.9418
 - **모델 구성**: 
-  - 10개 모델 앙상블 (2개 시드 × 5-fold)
-  - 이미지 크기: 320×320, 384x384
+  - 10배 이미지 증강
+  - 이미지 크기: 384x384
   - TTA 적용
 
 #### 실험 결과 요약
 
-| 모델 | 이미지 크기 | K-Fold | TTA | 검증 F1 | 검증 ACC |
+| 모델 | 이미지 크기 | K-Fold | TTA | 검증 F1 | 리더보드 |
 |------|-------------|---------|-----|---------|----------|
-| ResNet34 | 32×32 | X | X | ~0.40 | ~0.45 |
-| EfficientNet-B3 | 224×224 | X | X | ~0.65 | ~0.70 |
-| EfficientNetV2-L | 320×320 | 5-fold | X | ~0.80 | ~0.82 |
-| EfficientNetV2-XL | 480×480 | 5-fold | O | **0.86+** | **0.87+** |
+| EfficientNet-B3 | 224×224 | X | X | 0.9190 | 0.8050 |
+| EfficientNet-B3 | 224×224 | X | O | 0.9266 | 0.8241 |
+| EfficientNetV2-L | 320×320 | X | O | 0.9514 | 0.8760 |
+| EfficientNetV2-L | 320×320 | 5-fold | O | 0.9515 | 0.8924 |
+| EfficientNetV2-XL | 480×480 | X | O | 0.9611 | 0.9013 |
+| EfficientNetV2-XL | 480×480 | 5-fold | O | 0.9517 | 0.9196 |
+| EfficientNetV2-RW-M | 320×320 | 5-fold | O | **0.9625** | 0.8612 |
+| EfficientNetV2-RW-M + 10x Aug | 320×320 | 5-fold | O | 0.9386 | 0.9354 |
+| ConvnextV2-Base + 10x Aug | 384×384 | holdout | O | 0.9481 | **0.9418** |
 
 ### Presentation
 
