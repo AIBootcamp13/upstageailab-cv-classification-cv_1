@@ -14,7 +14,7 @@ data:
   num_workers: 0 
 
 train:
-  lr: 7e-4
+  lr: 1e-5
   epochs: 100
   batch_size: 16
   seed: 42
@@ -32,7 +32,7 @@ train:
 # Valid configuration
 valid:
   # Valid strategy: "holdout", "kfold", or "none"
-  strategy: "kfold"  # "holdout", "kfold", "none"
+  strategy: "holdout"  # "holdout", "kfold", "none"
   
   # Holdout configuration
   holdout:
@@ -60,8 +60,8 @@ augment:
 
 # Random seed ensemble configuration
 seed_ensemble:
-  enabled: true
-  count: 2  # 시도할 랜덤 시드 개수 (train.seed부터 순차 증가)
+  enabled: false
+  count: 1  # 시도할 랜덤 시드 개수 (train.seed부터 순차 증가)
 
 
 # Device configuration
