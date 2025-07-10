@@ -1,0 +1,17 @@
+{
+  "os":  "Linux-5.4.0-166-generic-x86_64-with-glibc2.31",
+  "python":  "CPython 3.9.23",
+  "startedAt":  "2025-07-10T08:00:15.727274Z",
+  "program":  "/workspace/seung_notebook/baseline_code.py",
+  "codePath":  "seung_notebook/baseline_code.py",
+  "codePathLocal":  "baseline_code.py",
+  "git":  {
+    "remote":  "https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_1.git",
+    "commit":  "3fbc8f0144d256974a4c74bb53ae6f10f87a6de3"
+  },
+  "email":  "songhune0627@gmail.com",
+  "root":  "/workspace/seung_notebook",
+  "host":  "instance-15507",
+  "executable":  "/opt/conda/envs/cv_project/bin/python",
+  "writerId":  "4z8en7d20u2mb9bfuqhu3beo12apfzew"
+}
