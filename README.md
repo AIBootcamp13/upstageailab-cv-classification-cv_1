@@ -4,7 +4,7 @@
 | ![문국현](https://avatars.githubusercontent.com/u/167870439?v=4) | ![류지헌](https://avatars.githubusercontent.com/u/10584296?v=4) | ![이승현](https://avatars.githubusercontent.com/u/126837633?v=4) | ![정재훈](https://avatars.githubusercontent.com/u/127591967?v=4) |
 | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: |
 | [문국현](https://github.com/GH-Door) | [류지헌](https://github.com/mahomi) | [이승현](https://github.com/shyio06) | [정재훈](https://github.com/coevol) |
-| 팀장, 담당 역할 | 담당 역할 | 담당 역할 | 담당 역할 |
+| 팀장, 모델링 총괄 | 모델 실험 및 최적화 | EDA 및 데이터 전처리 | 모델 검증 및 성능 분석 |
 
 
 ## 0. Overview
@@ -62,23 +62,46 @@
 
 ### Directory
 
-- _Insert your directory structure_
-
-e.g.
 ```
-├── code
-│   ├── jupyter_notebooks
-│   │   └── baseline_code.ipynb    # 베이스 라인 코드
-│   └── train.py
-├── docs
-│   ├── pdf
-│   │   └── (Template) [패스트캠퍼스] Upstage AI Lab 1기_그룹 스터디 .pptx
-│   └── paper
-└── input
-│   ├── get_data.sh  # ./get_data.sh 실행 시, 데이터 다운로드하여 data 폴더를 생성하여 압축을 푼다
-    └── data
-        ├── train
-        └── test
+├── code/
+│   ├── baseline_code_with_log.py
+│   ├── baseline_code.py
+│   ├── jhryu/
+│   │   ├── v1_simple/                # 단순 모델 실험 디렉토리
+│   │   │   ├── baseline_code_v4_*.py  # 다양한 모델 실험 파일들
+│   │   │   ├── baseline_code_v5_*.py  # K-fold 교차검증 실험 파일들
+│   │   │   └── ensemble_*.py         # 앙상블 모델 파일들
+│   │   └── v2_hydra_wandb/           # Hydra와 WandB를 활용한 실험 디렉토리
+│   │       ├── main.py               # 메인 실행 파일
+│   │       ├── config/               # 설정 파일 디렉토리
+│   │       ├── data.py               # 데이터 처리 모듈
+│   │       ├── models.py             # 모델 정의 모듈
+│   │       ├── training.py           # 훈련 로직 모듈
+│   │       ├── inference.py          # 추론 로직 모듈
+│   │       ├── utils.py              # 유틸리티 함수들
+│   │       └── tests/                # 테스트 파일들
+│   ├── jupyter_notebooks/
+│   │   ├── baseline_code.ipynb       # 베이스라인 코드
+│   │   ├── jhryu_eda_img_size.ipynb  # 이미지 크기 EDA
+│   │   ├── Moon.ipynb                # Moon 분석 노트북
+│   │   └── requirements.txt          # 노트북 의존성
+│   ├── seung_notebook/
+│   │   ├── baseline_code.py          # 베이스라인 코드
+│   │   ├── *_eda*.ipynb             # EDA 분석 노트북들
+│   │   ├── baseline_valid_transform_code.ipynb
+│   │   ├── train_transform.py        # 훈련 데이터 변환 코드
+│   │   └── *.md                     # 분석 문서들
+│   └── utils/
+│       └── log_util.py               # 로깅 유틸리티
+├── docs/
+│   └── wandb_guide.md               # WandB 사용 가이드
+├── input/
+│   ├── get_data.sh                  # 데이터 다운로드 스크립트
+│   └── data/                        # 데이터 디렉토리 (다운로드 후 생성)
+│       ├── train/                   # 훈련 데이터
+│       └── test/                    # 테스트 데이터
+├── code.tar.gz                      # 코드 아카이브
+└── README.md                        # 프로젝트 설명 문서
 ```
 
 ## 3. Data description
@@ -132,31 +155,114 @@ e.g.
 
 ## 4. Modeling
 
-### Model descrition
+### Model Description
 
-- _Write model information and why your select this model_
+본 프로젝트에서는 **EfficientNet 계열 모델**을 주력으로 사용하여 문서 분류 성능을 극대화했습니다.
+
+#### 사용된 모델 아키텍처
+
+- **EfficientNet-B3**: 초기 베이스라인 모델로 사용
+- **EfficientNetV2-L**: 대용량 모델로 성능 개선
+- **EfficientNetV2-XL**: 최고 성능을 위한 초대형 모델
+- **EfficientNetV2-RW-M**: 효율성과 성능의 균형을 위한 모델
+
+#### 모델 선택 이유
+
+1. **높은 성능**: ImageNet에서 검증된 SOTA 성능
+2. **효율성**: 파라미터 대비 높은 성능 효율
+3. **전이학습 적합성**: 사전 훈련된 가중치를 활용한 빠른 학습
+4. **문서 이미지 특성**: 세밀한 텍스트와 구조 인식에 우수한 성능
 
 ### Modeling Process
 
-- _Write model train and test process with capture_
+#### 1. 베이스라인 모델 (ResNet34)
+- **목적**: 기본 성능 확인 및 파이프라인 검증
+- **이미지 크기**: 32×32 (초기 테스트)
+- **성능**: 기본적인 분류 성능 확인
+
+#### 2. EfficientNet 시리즈 실험
+- **EfficientNet-B3**: 첫 번째 주요 모델
+- **EfficientNetV2-L/XL**: 대용량 모델로 성능 향상
+- **이미지 크기**: 320×320 → 480×480 (점진적 증가)
+- **배치 크기**: 32 → 16 (메모리 효율성 고려)
+
+#### 3. K-Fold 교차 검증
+- **Fold 수**: 5-fold 교차 검증
+- **다중 시드**: 42, 123 등 다양한 시드로 안정성 확보
+- **앙상블**: 10개 모델 (2개 시드 × 5-fold) 앙상블
+
+#### 4. 데이터 증강 및 TTA
+- **훈련 시 증강**: 
+  - 회전 (±10도)
+  - 밝기/대비 조정
+  - 가우시안 노이즈 추가
+  - 크기 조정 및 크롭
+- **TTA (Test Time Augmentation)**:
+  - 원본 이미지
+  - 수평 뒤집기
+  - 경미한 회전
+  - 밝기 조정
+
+#### 5. 최적화 전략
+- **손실 함수**: CrossEntropyLoss
+- **옵티마이저**: Adam (학습률 0.001)
+- **스케줄러**: CosineAnnealingLR
+- **조기 종료**: 검증 성능 기준 조기 종료
+- **모델 저장**: 최고 F1 점수 기준 모델 저장
+
+#### 6. 성능 향상 기법
+- **클래스 불균형 대응**: 가중치 조정 및 소수 클래스 증강
+- **캐싱 시스템**: 증강된 이미지 캐싱으로 학습 속도 향상
+- **배치 정규화**: 안정적인 학습을 위한 정규화
+- **드롭아웃**: 과적합 방지
 
 ## 5. Result
 
 ### Leader Board
 
-- _Insert Leader Board Capture_
-- _Write rank and score_
+#### 최종 성능 결과
+
+- **최고 성능 모델**: EfficientNetV2-XL + K-Fold 앙상블 + TTA
+- **검증 성능**: 
+  - F1 Score: 0.93+ (검증 데이터 기준)
+  - Accuracy: 0.93+ (검증 데이터 기준)
+- **모델 구성**: 
+  - 10개 모델 앙상블 (2개 시드 × 5-fold)
+  - 이미지 크기: 320×320, 384x384
+  - TTA 적용
+
+#### 실험 결과 요약
+
+| 모델 | 이미지 크기 | K-Fold | TTA | 검증 F1 | 검증 ACC |
+|------|-------------|---------|-----|---------|----------|
+| ResNet34 | 32×32 | X | X | ~0.40 | ~0.45 |
+| EfficientNet-B3 | 224×224 | X | X | ~0.65 | ~0.70 |
+| EfficientNetV2-L | 320×320 | 5-fold | X | ~0.80 | ~0.82 |
+| EfficientNetV2-XL | 480×480 | 5-fold | O | **0.86+** | **0.87+** |
 
 ### Presentation
 
-- _Insert your presentaion file(pdf) link_
+- 발표 자료는 프로젝트 완료 후 업데이트 예정
 
 ## etc
 
 ### Meeting Log
 
-- _Insert your meeting log link like Notion or Google Docs_
+- 팀 회의록은 내부 협업 도구를 통해 관리
+- 주요 결정사항과 실험 결과는 코드 내 주석 및 로그 파일로 관리
 
 ### Reference
 
-- _Insert related reference_
+#### 주요 참고 문헌
+
+- **EfficientNet 논문**: [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/abs/1905.11946)
+- **EfficientNetV2 논문**: [EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298)
+- **timm 라이브러리**: [PyTorch Image Models](https://github.com/rwightman/pytorch-image-models)
+- **Albumentations**: [Fast Image Augmentation Library](https://github.com/albumentations-team/albumentations)
+
+#### 기술 참고 자료
+
+- **K-Fold Cross Validation**: 모델 성능 검증을 위한 교차 검증 기법
+- **Test Time Augmentation**: 추론 시 증강 기법으로 성능 향상
+- **Class Imbalance Handling**: 불균형 데이터셋 대응 전략
+- **Document Classification**: 문서 분류를 위한 컴퓨터 비전 기법
