@@ -1,0 +1,76 @@
+# @package _global_
+defaults:
+  - config
+  - _self_
+
+# Fast test configuration
+model:
+  name: "efficientnetv2_rw_t"
+  num_classes: 17
+  pretrained: true
+
+data:  
+  img_size: 224 #128 #224
+  num_workers: 0 
+
+train:
+  lr: 7e-4
+  epochs: 100
+  batch_size: 16
+  seed: 42
+  
+  # Label Smoothing configuration
+  label_smoothing:
+    enabled: true
+    smoothing: 0.1  # 0.0 ~ 1.0, 일반적으로 0.1
+  
+  # Mixed Precision Training configuration
+  mixed_precision:
+    enabled: false
+
+
+# Valid configuration
+valid:
+  # Valid strategy: "holdout", "kfold", or "none"
+  strategy: "kfold"  # "holdout", "kfold", "none"
+  
+  # Holdout configuration
+  holdout:
+    train_ratio: 0.8
+    stratify: true
+    
+  # K-fold configuration
+  kfold:
+    n_splits: 5
+    stratify: true
+    
+  # Early stopping configuration
+  early_stopping:
+    enabled: true
+    patience: 30
+    min_delta: 0.001
+    monitor: "val_f1"  # "val_loss", "val_acc", "val_f1"
+    mode: "max"  # "min" for loss, "max" for accuracy/f1
+
+# Data augmentation configuration
+augment:
+  train_aug_count: 10       # number of augmented copies per train image
+  valid_aug_count: 0       # number of augmented copies per valid image
+  test_tta_enabled: true   # apply TTA on test dataset
+
+# Random seed ensemble configuration
+seed_ensemble:
+  enabled: true
+  count: 2  # 시도할 랜덤 시드 개수 (train.seed부터 순차 증가)
+
+
+# Device configuration
+device: "auto"  # "cuda" or "cpu" or "mps" or "auto"
+
+wandb:
+  enabled: true
+  project: null
+  entity: null  # will be loaded from .env file
+  run_name: "jhryu_v6_augment"  # auto-generated if null
+  tags: []
+  notes: ""

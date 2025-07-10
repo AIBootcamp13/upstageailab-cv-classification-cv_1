@@ -1,0 +1,64 @@
+# Scheduler test configuration
+defaults:
+  - _self_
+
+# Data configuration
+data:
+  data_path: "../../input/data"
+  img_size: 32
+  num_workers: 0
+
+# Model configuration
+model:
+  name: "resnet18"
+  num_classes: 17
+  pretrained: false
+
+# Training configuration
+train:
+  lr: 1e-3
+  epochs: 10
+  batch_size: 32
+  seed: 42
+  
+  # Learning rate scheduler configuration
+  scheduler:
+    enabled: true
+    name: "cosine"  # CosineAnnealingLR 사용
+    
+    # CosineAnnealingLR parameters
+    cosine:
+      T_max: 100  # epochs로 자동 설정됨
+      eta_min: 1e-6
+      last_epoch: -1
+
+# Validation configuration
+validation:
+  strategy: "holdout"
+  holdout:
+    train_ratio: 0.8
+    stratify: true
+  early_stopping:
+    enabled: false  # 빠른 테스트를 위해 비활성화
+
+# Device configuration
+device: "cpu"  # 테스트를 위해 CPU 사용
+
+# Output configuration
+output:
+  dir: "results"
+  filename: "pred_scheduler_test.csv"
+
+# Model saving configuration
+model_save:
+  dir: "models"
+  wandb_artifact: false
+
+# W&B configuration
+wandb:
+  enabled: false  # 테스트를 위해 비활성화
+  project: null
+  entity: null
+  run_name: "scheduler_test"
+  tags: ["scheduler", "test"]
+  notes: "Testing scheduler functionality" 

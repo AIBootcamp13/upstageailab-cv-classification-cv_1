@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - config
+
+# High performance configuration
+model:
+  name: "efficientnet_b0"
+  num_classes: 17
+  pretrained: true
+
+train:
+  lr: 1e-4
+  epochs: 5
+  batch_size: 16
+  seed: 42
+
+data:
+  img_size: 224
+  num_workers: 0 
