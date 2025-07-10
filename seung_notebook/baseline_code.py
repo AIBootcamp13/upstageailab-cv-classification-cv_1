@@ -169,9 +169,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # device
 
 data_path = '../data' # data config
 
-model_name = 'efficientnet_b4' # model config
+model_name = 'efficientnet_b3' # model config
 
-img_size = 380 # training config
+img_size = 300 # training config
 LR = 1e-4
 EPOCHS = 10
 BATCH_SIZE = 32

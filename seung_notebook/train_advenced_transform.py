@@ -4,7 +4,7 @@ from albumentations.pytorch import ToTensorV2
 # ✅ 최종 transform (조합 기반 augmentation 적용)
 train_transform = A.Compose([
     # Resize
-    A.Resize(380, 380),  # ← baseline과 동일
+    A.Resize(300, 300),  # ← baseline과 동일
 
     # === 조합 기반 augmentation -> Soft 하게 ===
 
@@ -17,10 +17,10 @@ train_transform = A.Compose([
     # 2️⃣ Noise + BrightnessContrast 조합
     A.OneOf([
         A.Compose([  # 조합형 augmentation
-            A.GaussNoise(var_limit=(10, 50), p=0.5),  # 기본 noise 0.7     # p 값 축소 0.5
+            A.GaussNoise(var_limit=(10, 50), p=0.5),  # 기본 noise 0.7  -> # p 값 축소 0.5
             A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.7),
         ]),
-        A.GaussNoise(var_limit=(50, 100), p=0.2),    # 고강도 noise (1.6% 근거) 0.3     # soft (p값 축소) 0.2
+        A.GaussNoise(var_limit=(50, 100), p=0.2),    # 고강도 noise (1.6% 근거) 0.3  -> # soft (p값 축소) 0.2
     ], p=0.1), # 전체 batch 중 10% 적용
 
     # 3️⃣ Skew (Rotation) 조합
