@@ -67,41 +67,54 @@
 │   ├── baseline_code_with_log.py
 │   ├── baseline_code.py
 │   ├── jhryu/
-│   │   ├── v1_simple/                # 단순 모델 실험 디렉토리
+│   │   ├── v1_simple/                 # 단순 모델 실험 디렉토리
 │   │   │   ├── baseline_code_v4_*.py  # 다양한 모델 실험 파일들
 │   │   │   ├── baseline_code_v5_*.py  # K-fold 교차검증 실험 파일들
-│   │   │   └── ensemble_*.py         # 앙상블 모델 파일들
-│   │   └── v2_hydra_wandb/           # Hydra와 WandB를 활용한 실험 디렉토리
-│   │       ├── main.py               # 메인 실행 파일
-│   │       ├── config/               # 설정 파일 디렉토리
-│   │       ├── data.py               # 데이터 처리 모듈
-│   │       ├── models.py             # 모델 정의 모듈
-│   │       ├── training.py           # 훈련 로직 모듈
-│   │       ├── inference.py          # 추론 로직 모듈
-│   │       ├── utils.py              # 유틸리티 함수들
-│   │       └── tests/                # 테스트 파일들
+│   │   │   └── ensemble_*.py          # 앙상블 모델 파일들
+│   │   └── v2_hydra_wandb/            # Hydra와 WandB를 활용한 실험 디렉토리
+│   │       ├── main.py                # 메인 실행 파일
+│   │       ├── config/                # 설정 파일 디렉토리
+│   │       ├── data.py                # 데이터 처리 모듈
+│   │       ├── models.py              # 모델 정의 모듈
+│   │       ├── training.py            # 훈련 로직 모듈
+│   │       ├── inference.py           # 추론 로직 모듈
+│   │       ├── utils.py               # 유틸리티 함수들
+│   │       └── tests/                 # 테스트 파일들
 │   ├── jupyter_notebooks/
-│   │   ├── baseline_code.ipynb       # 베이스라인 코드
-│   │   ├── jhryu_eda_img_size.ipynb  # 이미지 크기 EDA
-│   │   ├── Moon.ipynb                # Moon 분석 노트북
-│   │   └── requirements.txt          # 노트북 의존성
+│   │   ├── baseline_code.ipynb        # 베이스라인 코드
+│   │   ├── jhryu_eda_img_size.ipynb   # 이미지 크기 EDA
+│   │   ├── Moon.ipynb                 # Moon 분석 노트북
+│   │   └── requirements.txt           # 노트북 의존성
+│   ├── Moon/                          # Moon 실험/분석 디렉토리 (추가)
+│   │   ├── EDA.ipynb                  # EDA 노트북
+│   │   ├── Final.ipynb                # 최종 실험 노트북
+│   │   ├── Inference.py               # 추론 코드
+│   │   ├── Load_Data.py               # 데이터 로드 코드
+│   │   ├── Preprocess.py              # 전처리 코드
+│   │   ├── Test_EDA.ipynb             # 테스트 데이터 EDA
+│   │   ├── Train_EDA.ipynb            # 학습 데이터 EDA
+│   │   └── Train.py                   # 학습 코드
 │   ├── seung_notebook/
-│   │   ├── baseline_code.py          # 베이스라인 코드
-│   │   ├── *_eda*.ipynb             # EDA 분석 노트북들
-│   │   ├── baseline_valid_transform_code.ipynb
-│   │   ├── train_transform.py        # 훈련 데이터 변환 코드
-│   │   └── *.md                     # 분석 문서들
+│   │   ├── baseline_code.py           # 베이스라인 코드
+│   │   ├── baseline_info.md           # 베이스라인 설명
+│   │   ├── baseline_valid_transform_code.ipynb # 검증용 변환 코드
+│   │   ├── class_info.md              # 클래스 정보
+│   │   ├── test_eda_advenced.ipynb    # 고급 EDA
+│   │   ├── test_eda.ipynb             # EDA
+│   │   ├── train_eda_advenced.ipynb   # 고급 학습 EDA
+│   │   ├── train_eda.ipynb            # 학습 EDA
+│   │   └── train_transform.py         # 학습용 변환 코드
 │   └── utils/
-│       └── log_util.py               # 로깅 유틸리티
+│       └── log_util.py                # 로깅 유틸리티
 ├── docs/
-│   └── wandb_guide.md               # WandB 사용 가이드
+│   └── wandb_guide.md                 # WandB 사용 가이드
 ├── input/
-│   ├── get_data.sh                  # 데이터 다운로드 스크립트
-│   └── data/                        # 데이터 디렉토리 (다운로드 후 생성)
-│       ├── train/                   # 훈련 데이터
-│       └── test/                    # 테스트 데이터
-├── code.tar.gz                      # 코드 아카이브
-└── README.md                        # 프로젝트 설명 문서
+│   ├── get_data.sh                    # 데이터 다운로드 스크립트
+│   └── data/                          # 데이터 디렉토리 (다운로드 후 생성)
+│       ├── train/                     # 훈련 데이터
+│       └── test/                      # 테스트 데이터
+├── code.tar.gz                        # 코드 아카이브
+└── README.md                          # 프로젝트 설명 문서
 ```
 
 ## 3. Data description
@@ -157,14 +170,19 @@
 
 ### Model Description
 
-본 프로젝트에서는 **EfficientNet 계열 모델**을 주력으로 사용하여 문서 분류 성능을 극대화했습니다.
+본 프로젝트에서는 **EfficientNet, Convnext 계열 모델**을 주력으로 사용하여 문서 분류 성능을 극대화했습니다.
 
 #### 사용된 모델 아키텍처
 
-- **EfficientNet-B3**: 초기 베이스라인 모델로 사용
+- **ResNet-34**: 초기 베이스라인 모델로 사용
 - **EfficientNetV2-L**: 대용량 모델로 성능 개선
 - **EfficientNetV2-XL**: 최고 성능을 위한 초대형 모델
 - **EfficientNetV2-RW-M**: 효율성과 성능의 균형을 위한 모델
+- **ConvNeXt-Base**: 기본 ConvNeXt 모델로 균형잡힌 성능
+- **ConvNeXt-XLarge**: 대용량 ConvNeXt 모델로 높은 성능
+- **ConvNeXtV2-Base**: 개선된 ConvNeXt 아키텍처의 기본 모델
+- **ConvNeXtV2-Large**: 개선된 ConvNeXt 아키텍처의 대용량 모델
+- **ConvNeXtV2-Huge**: 개선된 ConvNeXt 아키텍처의 초대형 모델
 
 #### 모델 선택 이유
 
@@ -182,7 +200,7 @@
 
 #### 2. EfficientNet 시리즈 실험
 - **EfficientNet-B3**: 첫 번째 주요 모델
-- **EfficientNetV2-L/XL**: 대용량 모델로 성능 향상
+- **EfficientNetV2-L/XL, Convnext**: 대용량 모델로 성능 향상
 - **이미지 크기**: 320×320 → 480×480 (점진적 증가)
 - **배치 크기**: 32 → 16 (메모리 효율성 고려)
 
@@ -222,23 +240,28 @@
 
 #### 최종 성능 결과
 
-- **최고 성능 모델**: EfficientNetV2-XL + K-Fold 앙상블 + TTA
+- **최고 성능 모델**: ConvnextV2-Base + 10x Aug + TTA
 - **검증 성능**: 
-  - F1 Score: 0.93+ (검증 데이터 기준)
-  - Accuracy: 0.93+ (검증 데이터 기준)
+  - F1 Score: 0.9481 (검증 데이터 기준)
+  - 리더보드: 0.9418
 - **모델 구성**: 
-  - 10개 모델 앙상블 (2개 시드 × 5-fold)
-  - 이미지 크기: 320×320, 384x384
+  - 10배 이미지 증강
+  - 이미지 크기: 384x384
   - TTA 적용
 
 #### 실험 결과 요약
 
-| 모델 | 이미지 크기 | K-Fold | TTA | 검증 F1 | 검증 ACC |
+| 모델 | 이미지 크기 | K-Fold | TTA | 검증 F1 | 리더보드 |
 |------|-------------|---------|-----|---------|----------|
-| ResNet34 | 32×32 | X | X | ~0.40 | ~0.45 |
-| EfficientNet-B3 | 224×224 | X | X | ~0.65 | ~0.70 |
-| EfficientNetV2-L | 320×320 | 5-fold | X | ~0.80 | ~0.82 |
-| EfficientNetV2-XL | 480×480 | 5-fold | O | **0.86+** | **0.87+** |
+| EfficientNet-B3 | 224×224 | X | X | 0.9190 | 0.8050 |
+| EfficientNet-B3 | 224×224 | X | O | 0.9266 | 0.8241 |
+| EfficientNetV2-L | 320×320 | X | O | 0.9514 | 0.8760 |
+| EfficientNetV2-L | 320×320 | 5-fold | O | 0.9515 | 0.8924 |
+| EfficientNetV2-XL | 480×480 | X | O | 0.9611 | 0.9013 |
+| EfficientNetV2-XL | 480×480 | 5-fold | O | 0.9517 | 0.9196 |
+| EfficientNetV2-RW-M | 320×320 | 5-fold | O | **0.9625** | 0.8612 |
+| EfficientNetV2-RW-M + 10x Aug | 320×320 | 5-fold | O | 0.9386 | 0.9354 |
+| ConvnextV2-Base + 10x Aug | 384×384 | holdout | O | 0.9481 | **0.9418** |
 
 ### Presentation
 
