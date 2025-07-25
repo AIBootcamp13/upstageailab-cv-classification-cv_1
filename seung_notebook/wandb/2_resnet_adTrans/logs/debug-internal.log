@@ -1,0 +1,13 @@
+{"time":"2025-07-10T15:21:55.004128127+09:00","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-10T15:21:55.321845899+09:00","level":"INFO","msg":"stream: created new stream","id":"r76v6rad"}
+{"time":"2025-07-10T15:21:55.32191998+09:00","level":"INFO","msg":"stream: started","id":"r76v6rad"}
+{"time":"2025-07-10T15:21:55.321929511+09:00","level":"INFO","msg":"writer: Do: started","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:55.32192198+09:00","level":"INFO","msg":"handler: started","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:55.321998832+09:00","level":"INFO","msg":"sender: started","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:56.628861484+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-10T15:21:56.699303036+09:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading history steps 1-3, summary","runtime_seconds":0.07030112}],"total_operations":1}}
+{"time":"2025-07-10T15:21:56.883946977+09:00","level":"INFO","msg":"stream: closing","id":"r76v6rad"}
+{"time":"2025-07-10T15:21:56.883965288+09:00","level":"INFO","msg":"handler: closed","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:56.883975738+09:00","level":"INFO","msg":"writer: Close: closed","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:56.883995378+09:00","level":"INFO","msg":"sender: closed","stream_id":"r76v6rad"}
+{"time":"2025-07-10T15:21:56.884054169+09:00","level":"INFO","msg":"stream: closed","id":"r76v6rad"}

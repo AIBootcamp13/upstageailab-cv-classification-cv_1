@@ -1,0 +1,13 @@
+{"time":"2025-07-10T17:58:46.663887451+09:00","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-10T17:58:46.997108754+09:00","level":"INFO","msg":"stream: created new stream","id":"opamd1nj"}
+{"time":"2025-07-10T17:58:46.997165415+09:00","level":"INFO","msg":"stream: started","id":"opamd1nj"}
+{"time":"2025-07-10T17:58:46.997170135+09:00","level":"INFO","msg":"sender: started","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:46.997168395+09:00","level":"INFO","msg":"writer: Do: started","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:46.997218056+09:00","level":"INFO","msg":"handler: started","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:48.51153663+09:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading config.yaml","runtime_seconds":0.206494291,"progress":"1.6KB/1.6KB"}],"total_operations":1}}
+{"time":"2025-07-10T17:58:48.545502388+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-10T17:58:48.813903656+09:00","level":"INFO","msg":"stream: closing","id":"opamd1nj"}
+{"time":"2025-07-10T17:58:48.813919156+09:00","level":"INFO","msg":"handler: closed","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:48.813929587+09:00","level":"INFO","msg":"writer: Close: closed","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:48.813940257+09:00","level":"INFO","msg":"sender: closed","stream_id":"opamd1nj"}
+{"time":"2025-07-10T17:58:48.813999348+09:00","level":"INFO","msg":"stream: closed","id":"opamd1nj"}

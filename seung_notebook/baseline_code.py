@@ -52,13 +52,14 @@ import numpy as np
 import torch.nn as nn
 from albumentations.pytorch import ToTensorV2
 from torch.optim import Adam
-from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
+import wandb
 
-from train_transform import train_transform
+from train_advenced_transform import train_transform
 
 # 시드를 고정합니다.
 SEED = 42
@@ -75,8 +76,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # 데이터셋 클래스를 정의합니다.
 class ImageDataset(Dataset):
-    def __init__(self, csv, path, transform=None):
-        self.df = pd.read_csv(csv).values
+    def __init__(self, df, path, transform=None):
+        self.df = df.values  # DataFrame을 그대로 받도록 변경
         self.path = path
         self.transform = transform
 
@@ -127,78 +128,149 @@ def train_one_epoch(loader, model, optimizer, loss_fn, device):
 
     return ret
 
+def validate_one_epoch(loader, model, loss_fn, device):
+    model.eval()
+    val_loss = 0
+    preds_list = []
+    targets_list = []
+
+    with torch.no_grad():
+        pbar = tqdm(loader, desc="Valid")
+        for image, targets in pbar:
+            image = image.to(device)
+            targets = targets.to(device)
+
+            preds = model(image)
+            loss = loss_fn(preds, targets)
+
+            val_loss += loss.item()
+            preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
+            targets_list.extend(targets.detach().cpu().numpy())
+
+    val_loss /= len(loader)
+    val_acc = accuracy_score(targets_list, preds_list)
+    val_f1 = f1_score(targets_list, preds_list, average='macro')
+
+    ret = {
+        "val_loss": val_loss,
+        "val_acc": val_acc,
+        "val_f1": val_f1,
+    }
+
+    return ret
+
+
+
 """## 3. Hyper-parameters
 * 학습 및 추론에 필요한 하이퍼파라미터들을 정의합니다.
 """
 
-# device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # device
 
-# data config
-data_path = '../input/data'
+data_path = '../data' # data config
 
-# model config
-model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
+model_name = 'efficientnet_b3' # model config
 
-# training config
-img_size = 32
-LR = 1e-3
-EPOCHS = 1
+img_size = 300 # training config
+LR = 1e-4
+EPOCHS = 10
 BATCH_SIZE = 32
 num_workers = 0
+
 
 """## 4. Load Data
 * 학습, 테스트 데이터셋과 로더를 정의합니다.
 """
 
 # augmentation을 위한 transform 코드
-trn_transform = A.Compose([
-    # 이미지 크기 조정
+train_transform = train_transform
+valid_transform = A.Compose([
     A.Resize(height=img_size, width=img_size),
-    # images normalization
     A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    # numpy 이미지나 PIL 이미지를 PyTorch 텐서로 변환
+    ToTensorV2(),
+])
+test_transform = A.Compose([
+    A.Resize(height=img_size, width=img_size),
+    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ToTensorV2(),
 ])
 
-# test image 변환을 위한 transform 코드
-tst_transform = A.Compose([
-    A.Resize(height=img_size, width=img_size),
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ToTensorV2(),
-])
+# 데이터 분리
+train_df_full = pd.read_csv(f"{data_path}/train.csv")
+train_df, valid_df = train_test_split(
+                            train_df_full, 
+                            test_size=0.2, 
+                            stratify=train_df_full['target'], 
+                            random_state=SEED
+                            )
+
+# Test datatset 불러오기
+test_df = pd.read_csv(f"{data_path}/sample_submission.csv")
 
 # Dataset 정의
-trn_dataset = ImageDataset(
-    f"{data_path}/train.csv",
-    f"{data_path}/train/",
+train_dataset = ImageDataset(
+    train_df, 
+    f"{data_path}/train/", 
     transform=train_transform
 )
-tst_dataset = ImageDataset(
-    f"{data_path}/sample_submission.csv",
-    f"{data_path}/test/",
-    transform=tst_transform
+valid_dataset = ImageDataset(
+    valid_df, 
+    f"{data_path}/train/", 
+    transform=valid_transform
 )
-print(len(trn_dataset), len(tst_dataset))
+test_dataset  = ImageDataset(
+    test_df,
+    f"{data_path}/test/",
+    transform=valid_transform
+)
+print(len(train_dataset), len(valid_dataset), len(test_dataset))
 
 # DataLoader 정의
 trn_loader = DataLoader(
-    trn_dataset,
+    train_dataset,
     batch_size=BATCH_SIZE,
     shuffle=True,
     num_workers=num_workers,
     pin_memory=True,
     drop_last=False
 )
+valid_loader = DataLoader(
+    valid_dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=False,
+    num_workers=num_workers,
+    pin_memory=True
+)
 tst_loader = DataLoader(
-    tst_dataset,
+    test_dataset,
     batch_size=BATCH_SIZE,
     shuffle=False,
     num_workers=0,
     pin_memory=True
 )
 
-"""## 5. Train Model
+
+"""## 5. Wandb init
+* 모델 예측 결과를 Wandb에 저장하기 위해 wandb를 초기화합니다.
+"""
+
+# Wandb 연동
+wandb.init(
+    project="Document Classification",
+    entity="moonstalker9010-none",
+    name=f"{model_name}_lr{LR}_e{EPOCHS}b{BATCH_SIZE}_img{img_size}",
+    config={
+        "learning_rate": LR,
+        "batch_size": BATCH_SIZE,
+        "epochs": EPOCHS,
+        "model_name": model_name,
+        "img_size": img_size,
+    }
+)
+
+
+
+"""## 6. Train Model
 * 모델을 로드하고, 학습을 진행합니다.
 """
 
@@ -213,14 +285,21 @@ optimizer = Adam(model.parameters(), lr=LR)
 
 for epoch in range(EPOCHS):
     ret = train_one_epoch(trn_loader, model, optimizer, loss_fn, device=device)
+    val_ret = validate_one_epoch(valid_loader, model, loss_fn, device=device)
+    
+    ret.update(val_ret)  # train 결과 dict에 val 결과 추가
     ret['epoch'] = epoch
 
     log = ""
     for k, v in ret.items():
-      log += f"{k}: {v:.4f}\n"
+        log += f"{k}: {v:.4f}\n"
     print(log)
 
-"""# 6. Inference & Save File
+    # Wandb에 기록
+    for key, value in ret.items():
+        wandb.log({key: value})
+
+"""# 7. Inference & Save File
 * 테스트 이미지에 대한 추론을 진행하고, 결과 파일을 저장합니다.
 """
 
@@ -234,7 +313,7 @@ for image, _ in tqdm(tst_loader):
         preds = model(image)
     preds_list.extend(preds.argmax(dim=1).detach().cpu().numpy())
 
-pred_df = pd.DataFrame(tst_dataset.df, columns=['ID', 'target'])
+pred_df = pd.DataFrame(test_dataset.df, columns=['ID', 'target'])
 pred_df['target'] = preds_list
 
 sample_submission_df = pd.read_csv(f"{data_path}/sample_submission.csv")
@@ -243,6 +322,14 @@ assert (sample_submission_df['ID'] == pred_df['ID']).all()
 import os
 output_path = "output"
 os.makedirs(output_path, exist_ok=True)
-pred_df.to_csv(f"{output_path}/pred.csv", index=False)
+pred_df.to_csv(f"{output_path}/{model_name}_lr{LR}_e{EPOCHS}b{BATCH_SIZE}_img{img_size}.csv", index=False)
 
 pred_df.head()
+
+
+
+"""## 8. Wandb finish
+* Wandb를 종료합니다.
+"""
+
+wandb.finish()

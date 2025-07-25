@@ -1,0 +1,13 @@
+{"time":"2025-07-10T16:49:00.310967433+09:00","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-10T16:49:00.638414461+09:00","level":"INFO","msg":"stream: created new stream","id":"hpev12yb"}
+{"time":"2025-07-10T16:49:00.638473102+09:00","level":"INFO","msg":"stream: started","id":"hpev12yb"}
+{"time":"2025-07-10T16:49:00.638483082+09:00","level":"INFO","msg":"writer: Do: started","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:00.638493852+09:00","level":"INFO","msg":"handler: started","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:00.638959651+09:00","level":"INFO","msg":"sender: started","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:02.051177134+09:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading config.yaml","runtime_seconds":0.198018397,"progress":"1.6KB/1.6KB"}],"total_operations":1}}
+{"time":"2025-07-10T16:49:02.107098902+09:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-10T16:49:02.416408534+09:00","level":"INFO","msg":"stream: closing","id":"hpev12yb"}
+{"time":"2025-07-10T16:49:02.416428804+09:00","level":"INFO","msg":"handler: closed","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:02.416441514+09:00","level":"INFO","msg":"writer: Close: closed","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:02.416450944+09:00","level":"INFO","msg":"sender: closed","stream_id":"hpev12yb"}
+{"time":"2025-07-10T16:49:02.416514036+09:00","level":"INFO","msg":"stream: closed","id":"hpev12yb"}
